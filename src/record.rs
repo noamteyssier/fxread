@@ -22,4 +22,12 @@ impl Record {
     pub fn set_seq(&mut self, token: String) {
         self.seq = token;
     }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn seq(&self) -> &str {
+        &self.seq
+    }
 }
