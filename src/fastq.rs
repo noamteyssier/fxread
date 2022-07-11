@@ -3,12 +3,12 @@ use anyhow::Result;
 use super::fastx::FastxRead;
 use super::record::Record;
 
-pub struct FastqReader {
-    reader: Box<dyn BufRead>,
+pub struct FastqReader <R: BufRead> {
+    reader: R,
     buffer: String
 }
-impl FastqReader {
-    pub fn new(reader: Box<dyn BufRead>) -> Self {
+impl <R: BufRead> FastqReader <R> {
+    pub fn new(reader: R) -> Self {
         Self { 
             reader,
             buffer: String::new()
@@ -29,7 +29,7 @@ impl FastqReader {
     }
 }
 
-impl FastxRead for FastqReader {
+impl <R: BufRead> FastxRead for FastqReader<R> {
     fn next_record(&mut self) -> Result<Option<Record>> {
         let mut record = Record::new();
 
@@ -56,19 +56,9 @@ impl FastxRead for FastqReader {
             Ok(Some(record))
         }
     }
-
-    fn print_records(&mut self) -> Result<()>{
-        loop {
-            match self.next_record()? {
-                Some(r) => println!("{:?}", r),
-                None => break
-            };
-        }
-        Ok(())
-    }
 }
 
-impl Iterator for FastqReader {
+impl <R: BufRead> Iterator for FastqReader <R> {
 
     type Item = Record;
 
@@ -80,4 +70,3 @@ impl Iterator for FastqReader {
     }
 
 }
-

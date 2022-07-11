@@ -3,11 +3,11 @@ use anyhow::Result;
 use super::fastx::FastxRead;
 use super::record::Record;
 
-pub struct FastqReader <R: BufRead> {
+pub struct FastaReader <R: BufRead> {
     reader: R,
     buffer: String
 }
-impl <R: BufRead> FastqReader <R> {
+impl <R: BufRead> FastaReader <R> {
     pub fn new(reader: R) -> Self {
         Self { 
             reader,
@@ -17,7 +17,7 @@ impl <R: BufRead> FastqReader <R> {
 
     fn strip_header(&self, token: &str) -> String {
         token
-            .trim_start_matches('@')
+            .trim_start_matches('>')
             .trim_end()
             .to_string()
     }
@@ -29,11 +29,11 @@ impl <R: BufRead> FastqReader <R> {
     }
 }
 
-impl <R: BufRead> FastxRead for FastqReader<R> {
+impl <R: BufRead> FastxRead for FastaReader<R> {
     fn next_record(&mut self) -> Result<Option<Record>> {
         let mut record = Record::new();
 
-        for index in 0..4 {
+        for index in 0..2 {
             if self.reader.read_line(&mut self.buffer)? == 0 { 
                 break;
             }
@@ -41,10 +41,9 @@ impl <R: BufRead> FastxRead for FastqReader<R> {
                 0 => record.set_id(
                     self.strip_header(&self.buffer)
                 ),
-                1 => record.set_seq(
+                _ => record.set_seq(
                     self.strip_sequence(&self.buffer)
-                ),
-                _ => ()
+                )
             };
             self.buffer.clear();
         }
@@ -56,19 +55,9 @@ impl <R: BufRead> FastxRead for FastqReader<R> {
             Ok(Some(record))
         }
     }
-
-    fn print_records(&mut self) -> Result<()>{
-        loop {
-            match self.next_record()? {
-                Some(r) => println!("{:?}", r),
-                None => break
-            };
-        }
-        Ok(())
-    }
 }
 
-impl <R: BufRead> Iterator for FastqReader <R> {
+impl <R: BufRead> Iterator for FastaReader <R> {
 
     type Item = Record;
 
