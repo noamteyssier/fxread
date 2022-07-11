@@ -15,6 +15,10 @@ impl <R: BufRead> FastaReader <R> {
         }
     }
 
+    fn next_line(&mut self) -> Result<bool> {
+        Ok(self.reader.read_line(&mut self.buffer)? > 0)
+    }
+
     fn strip_header(&self, token: &str) -> String {
         token
             .trim_start_matches('>')
@@ -30,22 +34,21 @@ impl <R: BufRead> FastaReader <R> {
 }
 
 impl <R: BufRead> FastxRead for FastaReader<R> {
+
     fn next_record(&mut self) -> Result<Option<Record>> {
         let mut record = Record::new();
 
-        for index in 0..2 {
-            if self.reader.read_line(&mut self.buffer)? == 0 { 
-                break;
-            }
-            match index {
-                0 => record.set_id(
-                    self.strip_header(&self.buffer)
-                ),
-                _ => record.set_seq(
-                    self.strip_sequence(&self.buffer)
-                )
-            };
+        for idx in 0..2 {
             self.buffer.clear();
+            if !self.next_line()? { break }
+            match idx {
+                0 => {
+                    record.set_id(self.strip_header(&self.buffer))
+                },
+                _ => {
+                    record.set_seq(self.strip_sequence(&self.buffer))
+                }
+            }
         }
 
         if record.empty() {
