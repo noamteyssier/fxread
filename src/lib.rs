@@ -5,7 +5,7 @@
 //! record is one with an id and sequence regardless of its input format.
 //!
 //! This package defines the [`FastxRead`] trait, which is implemented by both
-//! [`FastqReader`] and [`FastqReader`]. This trait allows these types to be
+//! [`FastaReader`] and [`FastqReader`]. This trait allows these types to be
 //! treated as an [`Iterator`] which returns a fastx [`Record`] on each `next()`.
 //!
 //! This package also handles the creation of a [`FastxRead`] capable reader from
@@ -27,17 +27,16 @@
 //!     .for_each(|record| println!("{:?}", record));
 //! ```
 
-#![warn(missing_docs)]
-/// this is documentation
+/// Module for fastx records.
 pub mod record;
 
-/// this is documentation
+/// Module for the fastxread trait
 pub mod fastx;
 
-/// this is documentation
+/// Module for a fastq reader
 pub mod fastq;
 
-/// this is documentation
+/// Module for a fasta reader
 pub mod fasta;
 
 /// Module for utility functions associated with creating
