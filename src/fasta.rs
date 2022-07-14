@@ -4,11 +4,28 @@ use anyhow::Result;
 use super::fastx::FastxRead;
 use super::record::Record;
 
+/// A Fasta Reader implementation.
 pub struct FastaReader <R: BufRead> {
     reader: R,
     buffer: String
 }
 impl <R: BufRead> FastaReader <R> {
+
+    /// # Example
+    /// Creates a new [`FastaReader`] explicitly from an object
+    /// which implements [`BufRead`].
+    ///
+    /// ```
+    /// let fasta: &'static [u8] = b">sequence.id\nACGTACGT\n";
+    /// let reader = fxread::FastaReader::new(fasta);
+    /// ```
+    ///
+    /// or from a file reader.
+    /// ```
+    /// let file = std::fs::File::open("example/sequences.fa").unwrap();
+    /// let buffer = std::io::BufReader::new(file);
+    /// let reader = fxread::FastaReader::new(buffer);
+    /// ```
     pub fn new(reader: R) -> Self {
         Self { 
             reader,

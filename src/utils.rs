@@ -19,7 +19,7 @@ fn initialize_generic_buffer(
             let gzip = MultiGzDecoder::new(file);
             let buffer = BufReader::new(gzip);
             Ok(Box::new(buffer))
-        },
+        }
         false => {
             let file = File::open(path)?;
             let buffer = BufReader::new(file);
@@ -38,6 +38,62 @@ fn initialize_generic_reader(
     }
 }
 
+/// # Initializing a reader dependent on the file path extensions.
+/// ## Recognized Extensions
+/// This recognizes `FASTA` formats from `*.fa` and `*.fasta` and
+/// `FASTQ` formats from `*.fq` and `*.fastq`. These will then be
+/// opened with gzip buffers or standard depending on if the 
+/// `*.gz` extension is found at the end of the pathname.
+/// 
+/// ## From Fasta
+/// This example shows the creation of a reader from a fasta formatted
+/// plaintext file.
+/// ```
+/// use fxread::initialize_reader;
+/// let path = "example/sequences.fa";
+/// let reader = initialize_reader(path).unwrap();
+/// reader
+///     .into_iter()
+///     .for_each(|record| println!("{:?}", record));
+/// ```
+///
+/// ## From Gzip Fasta
+/// A common problem for the above however is that your file
+/// may actually be gzipped. Here you can use the same function
+/// and it will handle the initialization of the reader depending
+/// on the extension.
+/// ```
+/// use fxread::initialize_reader;
+/// let path = "example/sequences.fa.gz";
+/// let reader = initialize_reader(path).unwrap();
+/// reader
+///     .into_iter()
+///     .for_each(|record| println!("{:?}", record));
+/// ```
+///
+/// ## From Fastq
+/// Here is another example for a fastq-formatted file that 
+/// is plaintext
+/// ```
+/// use fxread::initialize_reader;
+/// let path = "example/sequences.fq";
+/// let reader = initialize_reader(path).unwrap();
+/// reader
+///     .into_iter()
+///     .for_each(|record| println!("{:?}", record));
+///
+/// ```
+/// ## From Gzip Fastq
+/// Here is another example for a fastq-formatted file that 
+/// is gzipped
+/// ```
+/// use fxread::initialize_reader;
+/// let path = "example/sequences.fq.gz";
+/// let reader = initialize_reader(path).unwrap();
+/// reader
+///     .into_iter()
+///     .for_each(|record| println!("{:?}", record));
+/// ```
 pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>>{
     let is_gzip = path.ends_with(".gz");
     let is_fasta = path.contains(".fa") | path.contains(".fasta");
