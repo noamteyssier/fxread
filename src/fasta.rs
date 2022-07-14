@@ -1,5 +1,6 @@
 use std::io::BufRead;
 use anyhow::Result;
+
 use super::fastx::FastxRead;
 use super::record::Record;
 
@@ -71,4 +72,48 @@ impl <R: BufRead> Iterator for FastaReader <R> {
         }
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+    use std::io::BufReader;
+    use flate2::read::MultiGzDecoder;
+    use super::FastaReader;
+    
+    #[test]
+    fn read_string() {
+        let fasta: &'static [u8] = b">seq.id\nACGT\n";
+        let mut reader = FastaReader::new(fasta);
+        let record = reader.next();
+        assert!(record.as_ref().is_some());
+        assert_eq!(record.as_ref().unwrap().id(), "seq.id");
+        assert_eq!(record.as_ref().unwrap().seq(), "ACGT");
+        assert_eq!(reader.into_iter().count(), 0);
+    }
+
+    #[test]
+    fn read_plaintext() {
+        let file = File::open("example/sequences.fa").unwrap();
+        let buffer = BufReader::new(file);
+        let mut reader = FastaReader::new(buffer);
+        let record = reader.next();
+        assert!(record.as_ref().is_some());
+        assert_eq!(record.as_ref().unwrap().id(), "seq.0");
+        assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
+        assert_eq!(reader.into_iter().count(), 9);
+    }
+
+    #[test]
+    fn read_gzip() {
+        let file = File::open("example/sequences.fa.gz").unwrap();
+        let gzip = MultiGzDecoder::new(file);
+        let buffer = BufReader::new(gzip);
+        let mut reader = FastaReader::new(buffer);
+        let record = reader.next();
+        assert!(record.as_ref().is_some());
+        assert_eq!(record.as_ref().unwrap().id(), "seq.0");
+        assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
+        assert_eq!(reader.into_iter().count(), 9);
+    }
 }
