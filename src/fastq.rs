@@ -3,11 +3,28 @@ use anyhow::Result;
 use super::fastx::FastxRead;
 use super::record::Record;
 
+/// A Fastq Reader implementation.
 pub struct FastqReader <R: BufRead> {
     reader: R,
     buffer: String
 }
 impl <R: BufRead> FastqReader <R> {
+
+    /// # Example
+    /// Creates a new [`FastqReader`] explicitly from an object
+    /// which implements [`BufRead`].
+    ///
+    /// ```
+    /// let fastq: &'static [u8] = b">sequence.id\nACGTACGT\n+\n$^$%^2@@";
+    /// let reader = fxread::FastqReader::new(fastq);
+    /// ```
+    ///
+    /// or from a file reader.
+    /// ```
+    /// let file = std::fs::File::open("example/sequences.fq").unwrap();
+    /// let buffer = std::io::BufReader::new(file);
+    /// let reader = fxread::FastqReader::new(buffer);
+    /// ```
     pub fn new(reader: R) -> Self {
         Self { 
             reader,
