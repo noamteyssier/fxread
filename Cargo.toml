@@ -1,10 +1,11 @@
 [package]
 name = "fxread"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "A barebones fastx reader for rust"
 license = "MIT"
 repository = "https://github.com/noamteyssier/fxread"
+documentation = "https://docs.rs/fxread"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
