@@ -37,18 +37,33 @@ impl <R: BufRead> FastaReader <R> {
         Ok(self.reader.read_line(&mut self.buffer)? > 0)
     }
 
-    fn strip_header(&self, token: &str) -> String {
-        token
-            .trim_start_matches('>')
-            .trim_end()
-            .to_string()
+    fn parse_header(&self, token: &str) -> Result<String> {
+        match token.starts_with('>') {
+            false => Err(anyhow::anyhow!("Header does not begin with '>': {}", token)),
+            true => Ok(token
+                        .trim_start_matches('>')
+                        .trim_end()
+                        .to_string())
+        }
     }
 
-    fn strip_sequence(&self, token: &str) -> String {
+    fn parse_sequence(&self, token: &str) -> Result<String> {
         token
             .trim_end()
-            .to_string()
+            .chars()
+            .map(|x| {
+                match x {
+                    'A'|'a' => Ok('A'),
+                    'C'|'c' => Ok('C'),
+                    'G'|'g' => Ok('G'),
+                    'T'|'t' => Ok('T'),
+                    'N'|'n' => Ok('N'),
+                    _ => Err(anyhow::anyhow!("Unexpected Character: {} in sequence: {}", x, token))
+                }
+            })
+            .collect()
     }
+
 }
 
 impl <R: BufRead> FastxRead for FastaReader<R> {
@@ -61,10 +76,10 @@ impl <R: BufRead> FastxRead for FastaReader<R> {
             if !self.next_line()? { break }
             match idx {
                 0 => {
-                    record.set_id(self.strip_header(&self.buffer))
+                    record.set_id(self.parse_header(&self.buffer)?)
                 },
                 _ => {
-                    record.set_seq(self.strip_sequence(&self.buffer))
+                    record.set_seq(self.parse_sequence(&self.buffer)?)
                 }
             }
         }
@@ -85,7 +100,7 @@ impl <R: BufRead> Iterator for FastaReader <R> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.next_record() {
             Ok(r) => r,
-            Err(_) => panic!("Unexpected file end")
+            Err(why) => panic!("{}", why)
         }
     }
 
@@ -101,6 +116,25 @@ mod tests {
     #[test]
     fn read_string() {
         let fasta: &'static [u8] = b">seq.id\nACGT\n";
+        let mut reader = FastaReader::new(fasta);
+        let record = reader.next();
+        assert!(record.as_ref().is_some());
+        assert_eq!(record.as_ref().unwrap().id(), "seq.id");
+        assert_eq!(record.as_ref().unwrap().seq(), "ACGT");
+        assert_eq!(reader.into_iter().count(), 0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn unexpected_chars() {
+        let fasta: &'static [u8] = b">seq.id\nABCD";
+        let mut reader = FastaReader::new(fasta);
+        let _record = reader.next();
+    }
+
+    #[test]
+    fn lower_to_upper() {
+        let fasta: &'static [u8] = b">seq.id\nacgt\n";
         let mut reader = FastaReader::new(fasta);
         let record = reader.next();
         assert!(record.as_ref().is_some());
