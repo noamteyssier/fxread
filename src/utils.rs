@@ -9,6 +9,33 @@ use super::{
     Record
 };
 
+/// Handles the algebraic enumerations of possible expected file types.
+/// This is either a Fasta/Fastq and whether or not it is Gzipped.
+#[derive(Debug)]
+enum FileType {
+    Fasta,
+    Fastq,
+    FastaGz,
+    FastqGz
+}
+impl FileType {
+    
+    /// Handles creation of enum from path name
+    pub fn from_path(path: &str) -> Option<Self> {
+        if path.ends_with(".fastq.gz") | path.ends_with(".fq.gz") {
+            Some(Self::FastqGz)
+        } else if path.ends_with(".fastq") | path.ends_with(".fq") {
+            Some(Self::Fastq)
+        } else if path.ends_with(".fasta.gz") | path.ends_with(".fa.gz") {
+            Some(Self::FastaGz)
+        } else if path.ends_with(".fasta") | path.ends_with(".fa") {
+            Some(Self::Fasta)
+        } else {
+            None
+        }
+    }
+}
+
 fn initialize_generic_buffer(
         path: &str, 
         is_gzip: bool) -> Result<Box<dyn BufRead>> 
@@ -95,8 +122,17 @@ fn initialize_generic_reader(
 ///     .for_each(|record| println!("{:?}", record));
 /// ```
 pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>>{
-    let is_gzip = path.ends_with(".gz");
-    let is_fasta = path.contains(".fa") | path.contains(".fasta");
+    let (is_gzip, is_fasta) = match FileType::from_path(path) {
+        Some(s) => {
+            match s {
+                FileType::Fasta => Ok((false, true)),
+                FileType::Fastq => Ok((false, false)),
+                FileType::FastaGz => Ok((true, true)),
+                FileType::FastqGz => Ok((true, false))
+            }
+        }
+        None => Err(anyhow::anyhow!("Cannot accurately parse filetype from path: {}", path))
+    }?;
     let buffer = initialize_generic_buffer(path, is_gzip)?;
     let reader = initialize_generic_reader(buffer, is_fasta);
     Ok(reader)
@@ -107,6 +143,79 @@ pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>
 mod test {
 
     use super::*;
+
+    #[test]
+    fn assignment_fastq_short() {
+        let path = "sequence.fq";
+        match FileType::from_path(path) {
+            Some(FileType::Fastq) => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn assignment_fastq_long() {
+        let path = "sequence.fastq";
+        match FileType::from_path(path) {
+            Some(FileType::Fastq) => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn assignment_fasta_short() {
+        let path = "sequence.fa";
+        match FileType::from_path(path) {
+            Some(FileType::Fasta) => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn assignment_fasta_long() {
+        let path = "sequence.fasta";
+        match FileType::from_path(path) {
+            Some(FileType::Fasta) => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+
+    #[test]
+    fn assignment_gz_fastq_short() {
+        let path = "sequence.fq.gz";
+        match FileType::from_path(path) {
+            Some(FileType::FastqGz) => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn assignment_gz_fastq_long() {
+        let path = "sequence.fastq.gz";
+        match FileType::from_path(path) {
+            Some(FileType::FastqGz) => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn assignment_gz_fasta_short() {
+        let path = "sequence.fa.gz";
+        match FileType::from_path(path) {
+            Some(FileType::FastaGz) => assert!(true),
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn assignment_gz_fasta_long() {
+        let path = "sequence.fasta.gz";
+        match FileType::from_path(path) {
+            Some(FileType::FastaGz) => assert!(true),
+            _ => assert!(false)
+        }
+    }
 
     #[test]
     fn assign_fasta() {
