@@ -95,12 +95,10 @@ impl <R: BufRead> Iterator for FastaReader <R> {
 
 #[cfg(test)]
 mod tests {
-    extern crate test;
     use std::fs::File;
     use std::io::BufReader;
     use flate2::read::MultiGzDecoder;
     use super::FastaReader;
-    use test::Bencher;
     
     #[test]
     fn read_string() {
@@ -152,32 +150,5 @@ mod tests {
         assert_eq!(record.as_ref().unwrap().id(), "seq.0");
         assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
         assert_eq!(reader.into_iter().count(), 9);
-    }
-
-    #[bench]
-    fn benchmark_static(b: &mut Bencher) {
-        b.iter(|| {
-            let buffer: &'static [u8] = b">seq.id\nACTG\n>seq.id\nACTG\n";
-            assert_eq!(FastaReader::new(buffer).count(), 2);
-        })
-    }
-
-    #[bench]
-    fn benchmark_plaintext(b: &mut Bencher) {
-        b.iter(|| {
-            let file = File::open("example/sequences.fa").unwrap();
-            let buffer = BufReader::new(file);
-            assert_eq!(FastaReader::new(buffer).count(), 10);
-        })
-    }
-
-    #[bench]
-    fn benchmark_gzip(b: &mut Bencher) {
-        b.iter(|| {
-            let file = File::open("example/sequences.fa.gz").unwrap();
-            let gzip = MultiGzDecoder::new(file);
-            let buffer = BufReader::new(gzip);
-            assert_eq!(FastaReader::new(buffer).count(), 10);
-        })
     }
 }

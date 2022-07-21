@@ -26,7 +26,6 @@
 //!     .into_iter()
 //!     .for_each(|record| println!("{:?}", record));
 //! ```
-#![feature(test)]
 
 /// Module for fastx records.
 pub mod record;
