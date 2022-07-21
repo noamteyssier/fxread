@@ -46,21 +46,8 @@ impl <R: BufRead> FastqReader <R> {
         }
     }
 
-    fn parse_sequence(&self, token: &str) -> Result<String> {
-        token
-            .trim_end()
-            .chars()
-            .map(|x| {
-                match x {
-                    'A'|'a' => Ok('A'),
-                    'C'|'c' => Ok('C'),
-                    'G'|'g' => Ok('G'),
-                    'T'|'t' => Ok('T'),
-                    'N'|'n' => Ok('N'),
-                    _ => Err(anyhow::anyhow!("Unexpected Character: {} in sequence: {}", x, token))
-                }
-            })
-            .collect()
+    fn parse_sequence(&self, token: &str) -> String {
+        token.trim_end().to_string()
     }
 }
 
@@ -76,7 +63,7 @@ impl <R: BufRead> FastxRead for FastqReader<R> {
                     record.set_id(self.parse_header(&self.buffer)?)
                 },
                 1 => {
-                    record.set_seq(self.parse_sequence(&self.buffer)?)
+                    record.set_seq(self.parse_sequence(&self.buffer))
                 },
                 _ => { }
             }
@@ -106,10 +93,12 @@ impl <R: BufRead> Iterator for FastqReader <R> {
 
 #[cfg(test)]
 mod tests {
+    extern crate test;
     use std::fs::File;
     use std::io::BufReader;
     use flate2::read::MultiGzDecoder;
     use super::FastqReader;
+    use test::Bencher;
     
     #[test]
     fn read_string() {
@@ -164,5 +153,32 @@ mod tests {
         assert_eq!(record.as_ref().unwrap().id(), "seq.0");
         assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
         assert_eq!(reader.into_iter().count(), 9);
+    }
+
+    #[bench]
+    fn benchmark_static(b: &mut Bencher) {
+        b.iter(|| {
+            let buffer: &'static [u8] = b"@seq.id\nACGT\n+\n7162\n@seq.id\nACGT\n+\n7162";
+            assert_eq!(FastqReader::new(buffer).count(), 2);
+        })
+    }
+
+    #[bench]
+    fn benchmark_plaintext(b: &mut Bencher) {
+        b.iter(|| {
+            let file = File::open("example/sequences.fq").unwrap();
+            let buffer = BufReader::new(file);
+            assert_eq!(FastqReader::new(buffer).count(), 10);
+        })
+    }
+
+    #[bench]
+    fn benchmark_gzip(b: &mut Bencher) {
+        b.iter(|| {
+            let file = File::open("example/sequences.fq.gz").unwrap();
+            let gzip = MultiGzDecoder::new(file);
+            let buffer = BufReader::new(gzip);
+            assert_eq!(FastqReader::new(buffer).count(), 10);
+        })
     }
 }
