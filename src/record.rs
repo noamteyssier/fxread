@@ -23,7 +23,7 @@ impl Record {
 
     /// Checks if `[Record]` is empty
     pub fn empty(&self) -> bool {
-        self.id.is_empty() & self.seq.is_empty()
+        self.id.is_empty() | self.seq.is_empty()
     }
 
     /// # Usage
@@ -56,5 +56,97 @@ impl Record {
     /// Returns a reference of the sequence 
     pub fn seq(&self) -> &str {
         &self.seq
+    }
+
+    /// Validates that the record is not partially constructed
+    /// or composed of unexpected nucleotides
+    pub fn valid(&self) -> bool {
+        !self.empty() & self.valid_sequence()
+    }
+
+    /// Converts the sequence to uppercase
+    pub fn seq_upper(&self) -> String {
+        self.seq.to_ascii_uppercase()
+    }
+
+    /// Validates whether sequence is composed
+    /// of valid nucleotides
+    fn valid_sequence(&self) -> bool {
+        self.seq.chars().all(|c| match c {
+            'A'|'a'|'C'|'c'|'G'|'g'|'T'|'t'|'N'|'n'|'U'|'u' => true,
+            _ => false
+        })
+    }
+
+}
+
+#[cfg(test)]
+mod test {
+    use super::Record;
+
+    #[test]
+    fn create() {
+        let record = Record::new();
+        assert!(record.empty());
+        assert!(!record.valid());
+    }
+
+    #[test]
+    fn create_partial_id() {
+        let mut record = Record::new();
+        record.set_id(String::from("some_id"));
+        assert!(record.empty());
+        assert!(!record.valid());
+    }
+
+    #[test]
+    fn create_partial_seq() {
+        let mut record = Record::new();
+        record.set_seq(String::from("ACGT"));
+        assert!(record.empty());
+        assert!(!record.valid());
+    }
+
+    #[test]
+    fn valid() {
+        let mut record = Record::new();
+        record.set_id(String::from("some_id"));
+        record.set_seq(String::from("ACGT"));
+        assert!(!record.empty());
+        assert!(record.valid());
+    }
+
+    #[test]
+    fn invalid() {
+        let mut record = Record::new();
+        record.set_id(String::from("some_id"));
+        record.set_seq(String::from("BCGT"));
+        assert!(!record.empty());
+        assert!(!record.valid());
+    }
+
+    #[test]
+    fn valid_lowercase() {
+        let mut record = Record::new();
+        record.set_id(String::from("some_id"));
+        record.set_seq(String::from("acgt"));
+        assert!(!record.empty());
+        assert!(record.valid());
+    }
+
+    #[test]
+    fn invalid_lowercase() {
+        let mut record = Record::new();
+        record.set_id(String::from("some_id"));
+        record.set_seq(String::from("bcgt"));
+        assert!(!record.empty());
+        assert!(!record.valid());
+    }
+
+    #[test]
+    fn upper_conversion() {
+        let mut record = Record::new();
+        record.set_seq(String::from("acgt"));
+        assert_eq!(record.seq_upper(), String::from("ACGT"));
     }
 }

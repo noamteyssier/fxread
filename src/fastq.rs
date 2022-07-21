@@ -46,21 +46,8 @@ impl <R: BufRead> FastqReader <R> {
         }
     }
 
-    fn parse_sequence(&self, token: &str) -> Result<String> {
-        token
-            .trim_end()
-            .chars()
-            .map(|x| {
-                match x {
-                    'A'|'a' => Ok('A'),
-                    'C'|'c' => Ok('C'),
-                    'G'|'g' => Ok('G'),
-                    'T'|'t' => Ok('T'),
-                    'N'|'n' => Ok('N'),
-                    _ => Err(anyhow::anyhow!("Unexpected Character: {} in sequence: {}", x, token))
-                }
-            })
-            .collect()
+    fn parse_sequence(&self, token: &str) -> String {
+        token.trim_end().to_string()
     }
 }
 
@@ -76,7 +63,7 @@ impl <R: BufRead> FastxRead for FastqReader<R> {
                     record.set_id(self.parse_header(&self.buffer)?)
                 },
                 1 => {
-                    record.set_seq(self.parse_sequence(&self.buffer)?)
+                    record.set_seq(self.parse_sequence(&self.buffer))
                 },
                 _ => { }
             }
@@ -123,22 +110,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn unexpected_chars() {
         let fastq: &'static [u8] = b"@seq.id\nABCD\n+\n7162";
         let mut reader = FastqReader::new(fastq);
-        let _record = reader.next();
+        let record = reader.next().unwrap();
+        assert!(!record.valid())
     }
 
     #[test]
     fn lower_to_upper() {
         let fastq: &'static [u8] = b"@seq.id\nacgt\n+\n7162";
         let mut reader = FastqReader::new(fastq);
-        let record = reader.next();
-        assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.id");
-        assert_eq!(record.as_ref().unwrap().seq(), "ACGT");
-        assert_eq!(reader.into_iter().count(), 0);
+        let record = reader.next().unwrap();
+        assert_eq!(record.seq_upper(), String::from("ACGT"));
     }
 
     #[test]
