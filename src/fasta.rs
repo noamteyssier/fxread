@@ -114,22 +114,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn unexpected_chars() {
         let fasta: &'static [u8] = b">seq.id\nABCD";
         let mut reader = FastaReader::new(fasta);
-        let _record = reader.next();
+        let record = reader.next().unwrap();
+        assert!(!record.valid())
     }
 
     #[test]
     fn lower_to_upper() {
         let fasta: &'static [u8] = b">seq.id\nacgt\n";
         let mut reader = FastaReader::new(fasta);
-        let record = reader.next();
-        assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.id");
-        assert_eq!(record.as_ref().unwrap().seq(), "ACGT");
-        assert_eq!(reader.into_iter().count(), 0);
+        let record = reader.next().unwrap();
+        assert_eq!(record.seq_upper(), String::from("ACGT"));
     }
 
     #[test]

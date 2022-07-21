@@ -112,22 +112,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn unexpected_chars() {
         let fastq: &'static [u8] = b"@seq.id\nABCD\n+\n7162";
         let mut reader = FastqReader::new(fastq);
-        let _record = reader.next();
+        let record = reader.next().unwrap();
+        assert!(!record.valid())
     }
 
     #[test]
     fn lower_to_upper() {
         let fastq: &'static [u8] = b"@seq.id\nacgt\n+\n7162";
         let mut reader = FastqReader::new(fastq);
-        let record = reader.next();
-        assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.id");
-        assert_eq!(record.as_ref().unwrap().seq(), "ACGT");
-        assert_eq!(reader.into_iter().count(), 0);
+        let record = reader.next().unwrap();
+        assert_eq!(record.seq_upper(), String::from("ACGT"));
     }
 
     #[test]
