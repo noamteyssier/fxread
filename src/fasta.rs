@@ -47,21 +47,8 @@ impl <R: BufRead> FastaReader <R> {
         }
     }
 
-    fn parse_sequence(&self, token: &str) -> Result<String> {
-        token
-            .trim_end()
-            .chars()
-            .map(|x| {
-                match x {
-                    'A'|'a' => Ok('A'),
-                    'C'|'c' => Ok('C'),
-                    'G'|'g' => Ok('G'),
-                    'T'|'t' => Ok('T'),
-                    'N'|'n' => Ok('N'),
-                    _ => Err(anyhow::anyhow!("Unexpected Character: {} in sequence: {}", x, token))
-                }
-            })
-            .collect()
+    fn parse_sequence(&self, token: &str) -> String {
+        token.trim_end().to_string()
     }
 
 }
@@ -79,7 +66,7 @@ impl <R: BufRead> FastxRead for FastaReader<R> {
                     record.set_id(self.parse_header(&self.buffer)?)
                 },
                 _ => {
-                    record.set_seq(self.parse_sequence(&self.buffer)?)
+                    record.set_seq(self.parse_sequence(&self.buffer))
                 }
             }
         }
@@ -145,25 +132,6 @@ mod tests {
         assert_eq!(reader.into_iter().count(), 0);
     }
 
-    #[bench]
-    fn benchmark_plaintext(b: &mut Bencher) {
-        b.iter(|| {
-            let file = File::open("example/sequences.fa").unwrap();
-            let buffer = BufReader::new(file);
-            assert_eq!(FastaReader::new(buffer).count(), 10);
-        })
-    }
-
-    #[bench]
-    fn benchmark_gzip(b: &mut Bencher) {
-        b.iter(|| {
-            let file = File::open("example/sequences.fa.gz").unwrap();
-            let gzip = MultiGzDecoder::new(file);
-            let buffer = BufReader::new(gzip);
-            assert_eq!(FastaReader::new(buffer).count(), 10);
-        })
-    }
-
     #[test]
     fn read_plaintext() {
         let file = File::open("example/sequences.fa").unwrap();
@@ -187,5 +155,32 @@ mod tests {
         assert_eq!(record.as_ref().unwrap().id(), "seq.0");
         assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
         assert_eq!(reader.into_iter().count(), 9);
+    }
+
+    #[bench]
+    fn benchmark_static(b: &mut Bencher) {
+        b.iter(|| {
+            let buffer: &'static [u8] = b">seq.id\nACTG\n>seq.id\nACTG\n";
+            assert_eq!(FastaReader::new(buffer).count(), 2);
+        })
+    }
+
+    #[bench]
+    fn benchmark_plaintext(b: &mut Bencher) {
+        b.iter(|| {
+            let file = File::open("example/sequences.fa").unwrap();
+            let buffer = BufReader::new(file);
+            assert_eq!(FastaReader::new(buffer).count(), 10);
+        })
+    }
+
+    #[bench]
+    fn benchmark_gzip(b: &mut Bencher) {
+        b.iter(|| {
+            let file = File::open("example/sequences.fa.gz").unwrap();
+            let gzip = MultiGzDecoder::new(file);
+            let buffer = BufReader::new(gzip);
+            assert_eq!(FastaReader::new(buffer).count(), 10);
+        })
     }
 }
