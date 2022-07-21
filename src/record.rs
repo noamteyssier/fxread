@@ -1,3 +1,5 @@
+use anyhow::{anyhow, Result};
+
 /// An instance of a Fastx Record.
 /// This is a two attribute object containing the sequence
 /// ID and the Sequence.
@@ -67,6 +69,22 @@ impl Record {
     /// Converts the sequence to uppercase
     pub fn seq_upper(&self) -> String {
         self.seq.to_ascii_uppercase()
+    }
+
+    /// Reverse Complements the sequence
+    /// This will also convert the sequence to uppercase
+    pub fn seq_rev_comp(&self) -> Result<String> {
+        self.seq
+            .chars()
+            .rev()
+            .map(|c| match c {
+                'A'|'a' => Ok('T'),
+                'C'|'c' => Ok('G'),
+                'G'|'g' => Ok('C'),
+                'T'|'t' => Ok('A'),
+                'N'|'n' => Ok('N'),
+                _ => Err(anyhow!("Unexpected nucleotide found: {}", c))
+            }).collect()
     }
 
     /// Validates whether sequence is composed
@@ -148,5 +166,27 @@ mod test {
         let mut record = Record::new();
         record.set_seq(String::from("acgt"));
         assert_eq!(record.seq_upper(), String::from("ACGT"));
+    }
+
+    #[test]
+    fn reverse_complement() {
+        let mut record = Record::new();
+        record.set_seq(String::from("ACGTA"));
+        assert_eq!(record.seq_rev_comp().unwrap(), "TACGT");
+    }
+
+    #[test]
+    fn lower_reverse_complement() {
+        let mut record = Record::new();
+        record.set_seq(String::from("acgta"));
+        assert_eq!(record.seq_rev_comp().unwrap(), "TACGT");
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_reverse_complement() {
+        let mut record = Record::new();
+        record.set_seq(String::from("ACGTAB"));
+        record.seq_rev_comp().unwrap();
     }
 }
