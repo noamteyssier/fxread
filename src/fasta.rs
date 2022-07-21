@@ -108,10 +108,12 @@ impl <R: BufRead> Iterator for FastaReader <R> {
 
 #[cfg(test)]
 mod tests {
+    extern crate test;
     use std::fs::File;
     use std::io::BufReader;
     use flate2::read::MultiGzDecoder;
     use super::FastaReader;
+    use test::Bencher;
     
     #[test]
     fn read_string() {
@@ -141,6 +143,25 @@ mod tests {
         assert_eq!(record.as_ref().unwrap().id(), "seq.id");
         assert_eq!(record.as_ref().unwrap().seq(), "ACGT");
         assert_eq!(reader.into_iter().count(), 0);
+    }
+
+    #[bench]
+    fn benchmark_plaintext(b: &mut Bencher) {
+        b.iter(|| {
+            let file = File::open("example/sequences.fa").unwrap();
+            let buffer = BufReader::new(file);
+            assert_eq!(FastaReader::new(buffer).count(), 10);
+        })
+    }
+
+    #[bench]
+    fn benchmark_gzip(b: &mut Bencher) {
+        b.iter(|| {
+            let file = File::open("example/sequences.fa.gz").unwrap();
+            let gzip = MultiGzDecoder::new(file);
+            let buffer = BufReader::new(gzip);
+            assert_eq!(FastaReader::new(buffer).count(), 10);
+        })
     }
 
     #[test]
