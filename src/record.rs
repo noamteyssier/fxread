@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Result};
+use std::str;
 
 /// An instance of a Fastx Record.
 /// This is a two attribute object containing the sequence
 /// ID and the Sequence.
 #[derive(Debug)]
 pub struct Record {
-    id: String,
-    seq: String
+    id: Vec<u8>,
+    seq: Vec<u8>
 }
 impl Record {
 
@@ -18,8 +18,8 @@ impl Record {
     /// ```
     pub fn new() -> Self {
         Self {
-            id: String::new(),
-            seq: String::new()
+            id: Vec::new(),
+            seq: Vec::new()
         }
     }
 
@@ -32,31 +32,31 @@ impl Record {
     /// Sets the ID of the record
     /// ```
     /// let mut record = fxread::Record::new();
-    /// record.set_id("some_id".to_string());
-    /// assert_eq!(record.id(), "some_id");
+    /// record.set_id("some_id");
+    /// assert_eq!(record.id(), b"some_id");
     /// ```
-    pub fn set_id(&mut self, token: String) {
-        self.id = token;
+    pub fn set_id(&mut self, token: &str) {
+        self.id = token.as_bytes().to_owned()
     }
 
     /// # Usage
     /// Sets the Sequence of the record
     /// ```
     /// let mut record = fxread::Record::new();
-    /// record.set_seq("ACGT".to_string());
-    /// assert_eq!(record.seq(), "ACGT");
+    /// record.set_seq("ACGT");
+    /// assert_eq!(record.seq(), b"ACGT");
     /// ```
-    pub fn set_seq(&mut self, token: String) {
-        self.seq = token;
+    pub fn set_seq(&mut self, token: &str) {
+        self.seq = token.as_bytes().to_owned();
     }
 
     /// Returns a reference of the sequence ID
-    pub fn id(&self) -> &str {
+    pub fn id(&self) -> &[u8] {
         &self.id
     }
 
     /// Returns a reference of the sequence 
-    pub fn seq(&self) -> &str {
+    pub fn seq(&self) -> &[u8] {
         &self.seq
     }
 
@@ -67,31 +67,27 @@ impl Record {
     }
 
     /// Converts the sequence to uppercase
-    pub fn seq_upper(&self) -> String {
-        self.seq.to_ascii_uppercase()
+    pub fn seq_upper(&self) -> Vec<u8> {
+        self.seq 
+            .iter()
+            .map(|c| if c & b' ' == 0 { *c } else { c ^ b' ' })
+            .collect()
     }
 
     /// Reverse Complements the sequence
-    /// This will also convert the sequence to uppercase
-    pub fn seq_rev_comp(&self) -> Result<String> {
+    pub fn seq_rev_comp(&self) -> Vec<u8> {
         self.seq
-            .chars()
+            .iter()
             .rev()
-            .map(|c| match c {
-                'A'|'a' => Ok('T'),
-                'C'|'c' => Ok('G'),
-                'G'|'g' => Ok('C'),
-                'T'|'t' => Ok('A'),
-                'N'|'n' => Ok('N'),
-                _ => Err(anyhow!("Unexpected nucleotide found: {}", c))
-            }).collect()
+            .map(|c| if c & 2 != 0 { c ^ 4 } else { c ^ 21 })
+            .collect()
     }
 
     /// Validates whether sequence is composed
     /// of valid nucleotides
     fn valid_sequence(&self) -> bool {
-        self.seq.chars().all(|c| match c {
-            'A'|'a'|'C'|'c'|'G'|'g'|'T'|'t'|'N'|'n'|'U'|'u' => true,
+        self.seq.iter().all(|b| match b {
+            b'A'|b'a'|b'C'|b'c'|b'G'|b'g'|b'T'|b't'|b'N'|b'n'|b'U'|b'u' => true,
             _ => false
         })
     }
@@ -112,7 +108,7 @@ mod test {
     #[test]
     fn create_partial_id() {
         let mut record = Record::new();
-        record.set_id(String::from("some_id"));
+        record.set_id("some_id");
         assert!(record.empty());
         assert!(!record.valid());
     }
@@ -120,7 +116,7 @@ mod test {
     #[test]
     fn create_partial_seq() {
         let mut record = Record::new();
-        record.set_seq(String::from("ACGT"));
+        record.set_seq("ACGT");
         assert!(record.empty());
         assert!(!record.valid());
     }
@@ -128,8 +124,8 @@ mod test {
     #[test]
     fn valid() {
         let mut record = Record::new();
-        record.set_id(String::from("some_id"));
-        record.set_seq(String::from("ACGT"));
+        record.set_id("some_id");
+        record.set_seq("ACGT");
         assert!(!record.empty());
         assert!(record.valid());
     }
@@ -137,8 +133,8 @@ mod test {
     #[test]
     fn invalid() {
         let mut record = Record::new();
-        record.set_id(String::from("some_id"));
-        record.set_seq(String::from("BCGT"));
+        record.set_id("some_id");
+        record.set_seq("BCGT");
         assert!(!record.empty());
         assert!(!record.valid());
     }
@@ -146,8 +142,8 @@ mod test {
     #[test]
     fn valid_lowercase() {
         let mut record = Record::new();
-        record.set_id(String::from("some_id"));
-        record.set_seq(String::from("acgt"));
+        record.set_id("some_id");
+        record.set_seq("acgt");
         assert!(!record.empty());
         assert!(record.valid());
     }
@@ -155,8 +151,8 @@ mod test {
     #[test]
     fn invalid_lowercase() {
         let mut record = Record::new();
-        record.set_id(String::from("some_id"));
-        record.set_seq(String::from("bcgt"));
+        record.set_id("some_id");
+        record.set_seq("bcgt");
         assert!(!record.empty());
         assert!(!record.valid());
     }
@@ -164,29 +160,21 @@ mod test {
     #[test]
     fn upper_conversion() {
         let mut record = Record::new();
-        record.set_seq(String::from("acgt"));
-        assert_eq!(record.seq_upper(), String::from("ACGT"));
+        record.set_seq("acgt");
+        assert_eq!(record.seq_upper(), b"ACGT");
     }
 
     #[test]
     fn reverse_complement() {
         let mut record = Record::new();
-        record.set_seq(String::from("ACGTA"));
-        assert_eq!(record.seq_rev_comp().unwrap(), "TACGT");
+        record.set_seq("ACGTA");
+        assert_eq!(record.seq_rev_comp(), b"TACGT");
     }
 
     #[test]
     fn lower_reverse_complement() {
         let mut record = Record::new();
-        record.set_seq(String::from("acgta"));
-        assert_eq!(record.seq_rev_comp().unwrap(), "TACGT");
-    }
-
-    #[test]
-    #[should_panic]
-    fn invalid_reverse_complement() {
-        let mut record = Record::new();
-        record.set_seq(String::from("ACGTAB"));
-        record.seq_rev_comp().unwrap();
+        record.set_seq("acgta");
+        assert_eq!(record.seq_rev_comp(), b"tacgt");
     }
 }
