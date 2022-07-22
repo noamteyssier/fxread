@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn unexpected_chars() {
-        let fasta: &'static [u8] = b">seq.id\nABCD";
+        let fasta: &'static [u8] = b">seq.id\nABCD\n";
         let mut reader = FastaReader::new(fasta);
         let record = reader.next().unwrap();
         assert!(!record.valid())

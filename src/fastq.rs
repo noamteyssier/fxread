@@ -80,7 +80,7 @@ mod tests {
     
     #[test]
     fn read_string() {
-        let fastq: &'static [u8] = b"@seq.id\nACGT\n+\n7162";
+        let fastq: &'static [u8] = b"@seq.id\nACGT\n+\n7162\n";
         let mut reader = FastqReader::new(fastq);
         let record = reader.next();
         assert!(record.as_ref().is_some());
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn unexpected_chars() {
-        let fastq: &'static [u8] = b"@seq.id\nABCD\n+\n7162";
+        let fastq: &'static [u8] = b"@seq.id\nABCD\n+\n7162\n";
         let mut reader = FastqReader::new(fastq);
         let record = reader.next().unwrap();
         assert!(!record.valid())
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn lower_to_upper() {
-        let fastq: &'static [u8] = b"@seq.id\nacgt\n+\n7162";
+        let fastq: &'static [u8] = b"@seq.id\nacgt\n+\n7162\n";
         let mut reader = FastqReader::new(fastq);
         let record = reader.next().unwrap();
         assert_eq!(record.seq_upper(), b"ACGT");
