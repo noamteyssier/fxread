@@ -107,7 +107,8 @@ impl Record {
     /// Validates that the record is not partially constructed
     /// or composed of unexpected nucleotides
     pub fn valid(&self) -> bool {
-        !self.empty() & self.valid_sequence()
+        if self.empty() { false }
+        else { self.valid_sequence() }
     }
 
     /// Converts the sequence to uppercase
@@ -140,85 +141,116 @@ impl Record {
 
 #[cfg(test)]
 mod test {
-    //use super::Record;
+    use super::Record;
 
-    //#[test]
-    //fn create() {
-        //let record = Record::new();
-        //assert!(record.empty());
-        //assert!(!record.valid());
-    //}
+    fn gen_valid_fasta() -> Vec<u8> {
+        b"seq.0\nACGT\n".to_vec()
+    }
 
-    //#[test]
-    //fn create_partial_id() {
-        //let mut record = Record::new();
-        //record.set_id(b"some_id".to_vec());
-        //assert!(record.empty());
-        //assert!(!record.valid());
-    //}
+    fn gen_valid_fasta_rev() -> Vec<u8> {
+        b"seq.0\nATCGGCTA\n".to_vec()
+    }
 
-    //#[test]
-    //fn create_partial_seq() {
-        //let mut record = Record::new();
-        //record.set_seq(b"ACGT".to_vec());
-        //assert!(record.empty());
-        //assert!(!record.valid());
-    //}
+    fn gen_valid_fasta_rev_lower() -> Vec<u8> {
+        b"seq.0\natcggcta\n".to_vec()
+    }
 
-    //#[test]
-    //fn valid() {
-        //let mut record = Record::new();
-        //record.set_id(b"some_id".to_vec());
-        //record.set_seq(b"ACGT".to_vec());
-        //assert!(!record.empty());
-        //assert!(record.valid());
-    //}
+    fn gen_invalid_fasta() -> Vec<u8> {
+        b"seq.0\nABCD\n".to_vec()
+    }
 
-    //#[test]
-    //fn invalid() {
-        //let mut record = Record::new();
-        //record.set_id(b"some_id".to_vec());
-        //record.set_seq(b"BCGT".to_vec());
-        //assert!(!record.empty());
-        //assert!(!record.valid());
-    //}
+    fn gen_valid_fasta_lower() -> Vec<u8> {
+        b"seq.0\nacgt\n".to_vec()
+    }
 
-    //#[test]
-    //fn valid_lowercase() {
-        //let mut record = Record::new();
-        //record.set_id(b"some_id".to_vec());
-        //record.set_seq(b"acgt".to_vec());
-        //assert!(!record.empty());
-        //assert!(record.valid());
-    //}
+    fn gen_invalid_fasta_lower() -> Vec<u8> {
+        b"seq.0\nabcd\n".to_vec()
+    }
 
-    //#[test]
-    //fn invalid_lowercase() {
-        //let mut record = Record::new();
-        //record.set_id(b"some_id".to_vec());
-        //record.set_seq(b"bcgt".to_vec());
-        //assert!(!record.empty());
-        //assert!(!record.valid());
-    //}
+    fn gen_valid_fastq() -> Vec<u8> {
+        b"seq.0\nACGT\n+\n1234\n".to_vec()
+    }
 
-    //#[test]
-    //fn upper_conversion() {
-        //let mut record = Record::new();
-        //record.set_seq(b"acgt".to_vec());
-        //assert_eq!(record.seq_upper(), b"ACGT");
-    //}
+    fn gen_invalid_fastq() -> Vec<u8> {
+        b"seq.0\nABCD\n+\n1234\n".to_vec()
+    }
 
-    //#[test]
-    //fn reverse_complement() {
-        //let mut record = Record::new();
-        //record.set_seq(b"ACGTA".to_vec());
-        //assert_eq!(record.seq_rev_comp(), b"TACGT");
-    //}
+    #[test]
+    fn create() {
+        let record = Record::new();
+        assert!(record.empty());
+        assert!(!record.valid());
+    }
 
-    //#[test]
-    //fn lower_reverse_complement() {
-        //let mut record = Record::new();
-        //record.set_seq(b"acgta".to_vec());
-        //assert_eq!(record.seq_rev_comp(), b"tacgt");
-    //}
+    #[test]
+    fn valid_fasta() {
+        let fasta = gen_valid_fasta();
+        let record = Record::from_fasta(fasta).unwrap();
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.id(), b"seq.0");
+        assert_eq!(record.seq(), b"ACGT");
+    }
+
+    #[test]
+    fn invalid_fasta() {
+        let fasta = gen_invalid_fasta();
+        let record = Record::from_fasta(fasta).unwrap();
+        assert!(!record.empty());
+        assert!(!record.valid());
+    }
+
+    #[test]
+    fn valid_fastq() {
+        let fastq = gen_valid_fastq();
+        let record = Record::from_fastq(fastq).unwrap();
+        assert!(!record.empty());
+        assert!(record.valid());
+    }
+
+    #[test]
+    fn invalid_fastq() {
+        let fastq = gen_invalid_fastq();
+        let record = Record::from_fastq(fastq).unwrap();
+        assert!(!record.empty());
+        assert!(!record.valid());
+    }
+
+    #[test]
+    fn valid_lowercase() {
+        let fasta = gen_valid_fasta_lower();
+        let record = Record::from_fasta(fasta).unwrap();
+        assert!(!record.empty());
+        assert!(record.valid());
+    }
+
+    #[test]
+    fn invalid_lowercase() {
+        let fasta = gen_invalid_fasta_lower();
+        let record = Record::from_fasta(fasta).unwrap();
+        assert!(!record.empty());
+        assert!(!record.valid());
+    }
+
+    #[test]
+    fn upper_conversion() {
+        let fasta = gen_valid_fasta_lower();
+        let record = Record::from_fasta(fasta).unwrap();
+        assert_eq!(record.seq_upper(), b"ACGT");
+    }
+
+    #[test]
+    fn reverse_complement() {
+        let fasta = gen_valid_fasta_rev();
+        let record = Record::from_fasta(fasta).unwrap();
+        assert_eq!(record.seq_rev_comp(), b"TAGCCGAT");
+    }
+
+    #[test]
+    fn reverse_complement_lower() {
+        let fasta = gen_valid_fasta_rev_lower();
+        let record = Record::from_fasta(fasta).unwrap();
+        assert_eq!(record.seq_rev_comp(), b"tagccgat");
+    }
+
 }
