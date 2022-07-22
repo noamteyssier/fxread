@@ -30,14 +30,17 @@ impl Record {
 
     /// Initializes a record from fasta data
     pub fn from_fasta(data: Vec<u8>) -> Result<Self> {
+
         let id = match memchr(b'\n', &data) {
             Some(index) => index,
             None => return Err(anyhow!("Unexpected Termination in header"))
         };
+        
         let seq = match memchr(b'\n', &data[id+1..]) {
             Some(index) => index,
             None => return Err(anyhow!("Unexpected Termination in sequence"))
         };
+        
         Ok(
             Self {
                 data,
