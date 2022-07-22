@@ -1,13 +1,14 @@
 use std::io::BufRead;
 use anyhow::{anyhow, Result};
-use bstr::io::{ByteLines, BufReadExt};
+use bstr::io::{BufReadExt, ByteRecords};
 
 use super::fastx::FastxRead;
 use super::record::Record;
 
 /// A Fastq Reader implementation.
 pub struct FastqReader <R: BufRead> {
-    reader: ByteLines<R>,
+    reader: ByteRecords<R>,
+    init: bool
 }
 impl <R: BufRead> FastqReader <R> {
 
@@ -16,7 +17,7 @@ impl <R: BufRead> FastqReader <R> {
     /// which implements [`BufRead`].
     ///
     /// ```
-    /// let fastq: &'static [u8] = b">sequence.id\nACGTACGT\n+\n$^$%^2@@";
+    /// let fastq: &'static [u8] = b">sequence.id\nACGTACGT\n+\n$^$%^AA";
     /// let reader = fxread::FastqReader::new(fastq);
     /// ```
     ///
@@ -27,43 +28,33 @@ impl <R: BufRead> FastqReader <R> {
     /// let reader = fxread::FastqReader::new(buffer);
     /// ```
     pub fn new(reader: R) -> Self {
-        Self { reader: reader.byte_lines() }
+        Self { reader: reader.byte_records(b'@'), init: false }
     }
 
-    fn parse_header(token: &[u8]) -> Result<&[u8]> {
-        match token[0] {
-            b'@' => Ok(&token[1..]),
-            _ => Err(anyhow!("Header does not begin with '@' "))
+    fn next_buffer(&mut self) -> Result<Option<Vec<u8>>> {
+        let buffer = match self.reader.next() {
+            Some(line) => line,
+            None => return Ok(None)
+        }?;
+
+        if !self.init {
+            match buffer.len() == 0 {
+                true => {self.init = true; self.next_buffer()},
+                false => return Err(anyhow!("Provided FASTQ does not begin with '@'"))
+            }
         }
+        else { Ok(Some(buffer)) }
     }
+
 }
 
 impl <R: BufRead> FastxRead for FastqReader<R> {
     fn next_record(&mut self) -> Result<Option<Record>> {
-        let mut record = Record::new();
-
-        for idx in 0..4 {
-            let buffer = match self.reader.next() {
-                Some(line) => line,
-                None => return Ok(None)
-            }?;
-            match idx {
-                0 => {
-                    record.set_id(Self::parse_header(&buffer)?.to_owned())
-                },
-                1 => {
-                    record.set_seq(buffer)
-                },
-                _ => {}
-            }
-        }
-
-        if record.empty() {
-            Ok(None)
-        }
-        else {
-            Ok(Some(record))
-        }
+        let buffer = match self.next_buffer()? {
+            Some(fastq) => fastq,
+            None => return Ok(None)
+        };
+        Ok(Some(Record::from_fastq(buffer)?))
     }
 }
 
