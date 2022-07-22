@@ -1,12 +1,13 @@
 use std::io::BufRead;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use bstr::{ByteSlice, io::{ByteLines, BufReadExt}};
+
 use super::fastx::FastxRead;
 use super::record::Record;
 
 /// A Fastq Reader implementation.
 pub struct FastqReader <R: BufRead> {
-    reader: R,
-    buffer: String
+    reader: ByteLines<R>,
 }
 impl <R: BufRead> FastqReader <R> {
 
@@ -26,27 +27,14 @@ impl <R: BufRead> FastqReader <R> {
     /// let reader = fxread::FastqReader::new(buffer);
     /// ```
     pub fn new(reader: R) -> Self {
-        Self { 
-            reader,
-            buffer: String::new()
+        Self { reader: reader.byte_lines() }
+    }
+
+    fn parse_header(token: &[u8]) -> Result<&[u8]> {
+        match token[0] {
+            b'@' => Ok(&token[1..]),
+            _ => Err(anyhow!("Header does not begin with '@' "))
         }
-    }
-
-    fn next_line(&mut self) -> Result<bool> {
-        Ok(self.reader.read_line(&mut self.buffer)? > 0)
-    }
-
-    fn parse_header<'a>(&self, token: &'a str) -> Result<&'a str> {
-        match token.starts_with('@') {
-            false => Err(anyhow::anyhow!("Header does not begin with '@': {}", token)),
-            true => Ok(token
-                        .trim_start_matches('@')
-                        .trim_end())
-        }
-    }
-
-    fn parse_sequence<'a>(&self, token: &'a str) -> &'a str {
-        token.trim_end()
     }
 }
 
@@ -55,16 +43,18 @@ impl <R: BufRead> FastxRead for FastqReader<R> {
         let mut record = Record::new();
 
         for idx in 0..4 {
-            self.buffer.clear();
-            if !self.next_line()? { break }
+            let buffer = match self.reader.next() {
+                Some(line) => line,
+                None => return Ok(None)
+            }?;
             match idx {
                 0 => {
-                    record.set_id(self.parse_header(&self.buffer)?)
+                    record.set_id(Self::parse_header(&buffer)?)
                 },
                 1 => {
-                    record.set_seq(self.parse_sequence(&self.buffer))
+                    record.set_seq(&buffer)
                 },
-                _ => { }
+                _ => {}
             }
         }
 
