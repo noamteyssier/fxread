@@ -37,18 +37,17 @@ impl <R: BufRead> FastaReader <R> {
         Ok(self.reader.read_line(&mut self.buffer)? > 0)
     }
 
-    fn parse_header(&self, token: &str) -> Result<String> {
+    fn parse_header<'a>(&self, token: &'a str) -> Result<&'a str> {
         match token.starts_with('>') {
             false => Err(anyhow::anyhow!("Header does not begin with '>': {}", token)),
             true => Ok(token
                         .trim_start_matches('>')
-                        .trim_end()
-                        .to_string())
+                        .trim_end())
         }
     }
 
-    fn parse_sequence(&self, token: &str) -> String {
-        token.trim_end().to_string()
+    fn parse_sequence<'a>(&self, token: &'a str) -> &'a str {
+        token.trim_end()
     }
 
 }
@@ -106,8 +105,8 @@ mod tests {
         let mut reader = FastaReader::new(fasta);
         let record = reader.next();
         assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.id");
-        assert_eq!(record.as_ref().unwrap().seq(), "ACGT");
+        assert_eq!(record.as_ref().unwrap().id(), b"seq.id");
+        assert_eq!(record.as_ref().unwrap().seq(), b"ACGT");
         assert_eq!(reader.into_iter().count(), 0);
     }
 
@@ -124,7 +123,7 @@ mod tests {
         let fasta: &'static [u8] = b">seq.id\nacgt\n";
         let mut reader = FastaReader::new(fasta);
         let record = reader.next().unwrap();
-        assert_eq!(record.seq_upper(), String::from("ACGT"));
+        assert_eq!(record.seq_upper(), b"ACGT");
     }
 
     #[test]
@@ -134,8 +133,8 @@ mod tests {
         let mut reader = FastaReader::new(buffer);
         let record = reader.next();
         assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.0");
-        assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
+        assert_eq!(record.as_ref().unwrap().id(), b"seq.0");
+        assert_eq!(record.as_ref().unwrap().seq(), b"TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
         assert_eq!(reader.into_iter().count(), 9);
     }
 
@@ -147,8 +146,8 @@ mod tests {
         let mut reader = FastaReader::new(buffer);
         let record = reader.next();
         assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.0");
-        assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
+        assert_eq!(record.as_ref().unwrap().id(), b"seq.0");
+        assert_eq!(record.as_ref().unwrap().seq(), b"TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
         assert_eq!(reader.into_iter().count(), 9);
     }
 }
