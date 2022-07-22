@@ -1,13 +1,14 @@
 use std::io::BufRead;
 use anyhow::{anyhow, Result};
-use bstr::io::{ByteLines, BufReadExt};
+use bstr::io::{BufReadExt, ByteRecords};
 
 use super::fastx::FastxRead;
 use super::record::Record;
 
 /// A Fasta Reader implementation.
 pub struct FastaReader <R: BufRead> {
-    reader: ByteLines<R>
+    reader: ByteRecords<R>,
+    init: bool
 }
 impl <R: BufRead> FastaReader <R> {
 
@@ -27,14 +28,22 @@ impl <R: BufRead> FastaReader <R> {
     /// let reader = fxread::FastaReader::new(buffer);
     /// ```
     pub fn new(reader: R) -> Self {
-        Self { reader: reader.byte_lines() }
+        Self { reader: reader.byte_records(b'>'), init: false }
     }
 
-    fn parse_header(token: &[u8]) -> Result<&[u8]> {
-        match token[0] {
-            b'>' => Ok(&token[1..]),
-            _ => Err(anyhow!("Header does not begin with '>' "))
+    fn next_buffer(&mut self) -> Result<Option<Vec<u8>>> {
+        let buffer = match self.reader.next() {
+            Some(line) => line,
+            None => return Ok(None)
+        }?;
+
+        if !self.init {
+            match buffer.len() == 0 {
+                true => {self.init = true; self.next_buffer()},
+                false => return Err(anyhow!("Provided FASTA does not begin with '>'"))
+            }
         }
+        else { Ok(Some(buffer)) }
     }
 
 }
@@ -42,29 +51,11 @@ impl <R: BufRead> FastaReader <R> {
 impl <R: BufRead> FastxRead for FastaReader<R> {
 
     fn next_record(&mut self) -> Result<Option<Record>> {
-        let mut record = Record::new();
-
-        for idx in 0..2 {
-            let buffer = match self.reader.next() {
-                Some(line) => line,
-                None => return Ok(None)
-            }?;
-            match idx {
-                0 => {
-                    record.set_id(Self::parse_header(&buffer)?.to_owned())
-                },
-                _ => {
-                    record.set_seq(buffer)
-                }
-            }
-        }
-
-        if record.empty() {
-            Ok(None)
-        }
-        else {
-            Ok(Some(record))
-        }
+        let buffer = match self.next_buffer()? {
+            Some(fasta) => fasta,
+            None => return Ok(None)
+        };
+        Ok(Some(Record::from_fasta(buffer)?))
     }
 }
 
