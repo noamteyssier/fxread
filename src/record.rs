@@ -1,5 +1,3 @@
-use std::str;
-
 /// An instance of a Fastx Record.
 /// This is a two attribute object containing the sequence
 /// ID and the Sequence.
@@ -32,22 +30,22 @@ impl Record {
     /// Sets the ID of the record
     /// ```
     /// let mut record = fxread::Record::new();
-    /// record.set_id("some_id");
+    /// record.set_id(b"some_id");
     /// assert_eq!(record.id(), b"some_id");
     /// ```
-    pub fn set_id(&mut self, token: &str) {
-        self.id = token.as_bytes().to_owned()
+    pub fn set_id(&mut self, token: &[u8]) {
+        self.id = token.to_owned()
     }
 
     /// # Usage
     /// Sets the Sequence of the record
     /// ```
     /// let mut record = fxread::Record::new();
-    /// record.set_seq("ACGT");
+    /// record.set_seq(b"ACGT");
     /// assert_eq!(record.seq(), b"ACGT");
     /// ```
-    pub fn set_seq(&mut self, token: &str) {
-        self.seq = token.as_bytes().to_owned();
+    pub fn set_seq(&mut self, token: &[u8]) {
+        self.seq = token.to_owned();
     }
 
     /// Returns a reference of the sequence ID
@@ -108,7 +106,7 @@ mod test {
     #[test]
     fn create_partial_id() {
         let mut record = Record::new();
-        record.set_id("some_id");
+        record.set_id(b"some_id");
         assert!(record.empty());
         assert!(!record.valid());
     }
@@ -116,7 +114,7 @@ mod test {
     #[test]
     fn create_partial_seq() {
         let mut record = Record::new();
-        record.set_seq("ACGT");
+        record.set_seq(b"ACGT");
         assert!(record.empty());
         assert!(!record.valid());
     }
@@ -124,8 +122,8 @@ mod test {
     #[test]
     fn valid() {
         let mut record = Record::new();
-        record.set_id("some_id");
-        record.set_seq("ACGT");
+        record.set_id(b"some_id");
+        record.set_seq(b"ACGT");
         assert!(!record.empty());
         assert!(record.valid());
     }
@@ -133,8 +131,8 @@ mod test {
     #[test]
     fn invalid() {
         let mut record = Record::new();
-        record.set_id("some_id");
-        record.set_seq("BCGT");
+        record.set_id(b"some_id");
+        record.set_seq(b"BCGT");
         assert!(!record.empty());
         assert!(!record.valid());
     }
@@ -142,8 +140,8 @@ mod test {
     #[test]
     fn valid_lowercase() {
         let mut record = Record::new();
-        record.set_id("some_id");
-        record.set_seq("acgt");
+        record.set_id(b"some_id");
+        record.set_seq(b"acgt");
         assert!(!record.empty());
         assert!(record.valid());
     }
@@ -151,8 +149,8 @@ mod test {
     #[test]
     fn invalid_lowercase() {
         let mut record = Record::new();
-        record.set_id("some_id");
-        record.set_seq("bcgt");
+        record.set_id(b"some_id");
+        record.set_seq(b"bcgt");
         assert!(!record.empty());
         assert!(!record.valid());
     }
@@ -160,21 +158,21 @@ mod test {
     #[test]
     fn upper_conversion() {
         let mut record = Record::new();
-        record.set_seq("acgt");
+        record.set_seq(b"acgt");
         assert_eq!(record.seq_upper(), b"ACGT");
     }
 
     #[test]
     fn reverse_complement() {
         let mut record = Record::new();
-        record.set_seq("ACGTA");
+        record.set_seq(b"ACGTA");
         assert_eq!(record.seq_rev_comp(), b"TACGT");
     }
 
     #[test]
     fn lower_reverse_complement() {
         let mut record = Record::new();
-        record.set_seq("acgta");
+        record.set_seq(b"acgta");
         assert_eq!(record.seq_rev_comp(), b"tacgt");
     }
 }
