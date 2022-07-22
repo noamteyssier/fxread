@@ -1,6 +1,6 @@
 use std::io::BufRead;
 use anyhow::{anyhow, Result};
-use bstr::{ByteSlice, io::{ByteLines, BufReadExt}};
+use bstr::io::{ByteLines, BufReadExt};
 
 use super::fastx::FastxRead;
 use super::record::Record;
@@ -51,10 +51,10 @@ impl <R: BufRead> FastxRead for FastaReader<R> {
             }?;
             match idx {
                 0 => {
-                    record.set_id(Self::parse_header(&buffer)?)
+                    record.set_id(Self::parse_header(&buffer)?.to_owned())
                 },
                 _ => {
-                    record.set_seq(&buffer)
+                    record.set_seq(buffer)
                 }
             }
         }
