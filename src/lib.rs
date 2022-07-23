@@ -30,21 +30,24 @@
 /// Module for fastx records.
 pub mod record;
 
-/// Module for the fastxread trait
-pub mod fastx;
+/// Module for IO Operations
+pub mod io;
 
-/// Module for a fastq reader
-pub mod fastq;
+//// Module for the fastxread trait
+//pub mod fastx;
 
-/// Module for a fasta reader
-pub mod fasta;
+//// Module for a fastq reader
+//pub mod fastq;
 
-/// Module for utility functions associated with creating
-/// the correct fastx reader.
-pub mod utils;
+//// Module for a fasta reader
+//pub mod fasta;
 
-pub use fastx::FastxRead;
-pub use fasta::FastaReader;
-pub use fastq::FastqReader;
-pub use record::Record;
-pub use utils::initialize_reader;
+//// Module for utility functions associated with creating
+//// the correct fastx reader.
+//pub mod utils;
+
+//pub use fastx::FastxRead;
+//pub use fasta::FastaReader;
+//pub use fastq::FastqReader;
+//pub use record::Record;
+//pub use utils::initialize_reader;
