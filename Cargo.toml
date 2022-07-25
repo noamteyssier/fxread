@@ -14,5 +14,3 @@ categories = ["science"]
 [dependencies]
 flate2 = "1"
 anyhow = "1"
-bstr = "0.2"
-memchr = "2.5"
