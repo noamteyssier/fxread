@@ -3,6 +3,8 @@ use anyhow::{Result, anyhow};
 use super::fastx::FastxRead;
 use super::record::Record;
 
+/// Struct to handle the Byte Reading for Fasta Formatted Files. 
+/// Heavily inspired from bstr ByteRecord.
 pub struct FastaBytes<B> {
     buf: B
 }
