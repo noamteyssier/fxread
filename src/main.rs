@@ -1,7 +1,7 @@
 use fxread::initialize_reader;
 
 fn main() {
-    let path = "mini.fq";
+    let path = "example/sequences.fa";
     let reader = initialize_reader(path).expect("invalid path");
-    reader.count();
+    println!("{}", reader.count());
 }
