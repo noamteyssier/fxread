@@ -27,6 +27,19 @@ impl Record {
         }
     }
 
+    /// # Usage
+    /// Creates a new instance of a `[Record]` from a preinitialized
+    /// `[Vec<u8>]` with the `id` and `seq` endpoints calculated. These
+    /// endpoints are inclusive of the '\n' terminator and the data is
+    /// expected to exclude the prefix '>' marker.
+    /// ```
+    /// let data = b"seq.0\nACGT\n".to_vec();
+    /// let id = 6;
+    /// let seq = 5;
+    /// let fasta = fxread::Record::new_fasta(data, id, seq);
+    /// assert_eq!(fasta.id(), b"seq.0");
+    /// assert_eq!(fasta.seq(), b"ACGT");
+    /// ```
     pub fn new_fasta(data: Vec<u8>, id: usize, seq: usize) -> Self {
         Self {
             data, id, seq, 
@@ -34,6 +47,23 @@ impl Record {
         }
     }
 
+    /// # Usage
+    /// Creates a new instance of a `[Record]` from a preinitialized
+    /// `[Vec<u8>]` with the `id`, `seq`, `plus`, and `qual` endpoints calculated. 
+    /// These endpoints are inclusive of the '\n' terminator and the data is
+    /// expected to exclude the prefix '@' marker.
+    /// ```
+    /// let data = b"seq.0\nACGT\n+\n1234\n".to_vec();
+    /// let id = 6;
+    /// let seq = 5;
+    /// let plus = 2;
+    /// let qual = 5;
+    /// let fasta = fxread::Record::new_fastq(data, id, seq, plus, qual);
+    /// assert_eq!(fasta.id(), b"seq.0");
+    /// assert_eq!(fasta.seq(), b"ACGT");
+    /// assert_eq!(fasta.plus().unwrap(), b"+");
+    /// assert_eq!(fasta.qual().unwrap(), b"1234");
+    /// ```
     pub fn new_fastq(data: Vec<u8>, id: usize, seq: usize, plus:usize, qual: usize) -> Self {
         Self {
             data, id, seq, 
