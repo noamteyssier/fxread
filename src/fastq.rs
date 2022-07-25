@@ -1,14 +1,54 @@
 use std::io::BufRead;
-use anyhow::{anyhow, Result};
-use bstr::io::{BufReadExt, ByteRecords};
+use anyhow::{Result, anyhow};
 
 use super::fastx::FastxRead;
 use super::record::Record;
 
-/// A Fastq Reader implementation.
+pub struct FastqBytes<B> {
+    buf: B
+}
+
+impl <B: BufRead> Iterator for FastqBytes<B> {
+    type Item = Result<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut bytes = Vec::with_capacity(300);
+        let mut null = Vec::with_capacity(5);
+
+        let _marker = match self.buf.read_until(b'@', &mut null) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(1) => {},
+            Ok(_) => return Some(Err(anyhow!("Misplaced Fastq Marker Sequence '@'")))
+        };
+        let id = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let seq = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let plus = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let qual = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let record = Record::new_fastq(bytes, id, seq, plus, qual);
+        Some(Ok(record))
+    }
+
+}
+
 pub struct FastqReader <R: BufRead> {
-    reader: ByteRecords<R>,
-    init: bool
+    reader: FastqBytes<R>
 }
 impl <R: BufRead> FastqReader <R> {
 
@@ -28,24 +68,16 @@ impl <R: BufRead> FastqReader <R> {
     /// let reader = fxread::FastqReader::new(buffer);
     /// ```
     pub fn new(reader: R) -> Self {
-        Self { reader: reader.byte_records(b'@'), init: false }
+        Self { reader: FastqBytes { buf: reader } }
     }
 
-    fn next_buffer(&mut self) -> Result<Option<Vec<u8>>> {
+    fn next_buffer(&mut self) -> Result<Option<Record>> {
         let buffer = match self.reader.next() {
-            Some(line) => line,
-            None => return Ok(None)
-        }?;
-
-        if !self.init {
-            match buffer.len() == 0 {
-                true => {self.init = true; self.next_buffer()},
-                false => return Err(anyhow!("Provided FASTQ does not begin with '@'"))
-            }
-        }
-        else { Ok(Some(buffer)) }
+            Some(line) => Some(line?),
+            None => None
+        };
+        Ok(buffer)
     }
-
 }
 
 impl <R: BufRead> FastxRead for FastqReader<R> {
@@ -54,7 +86,7 @@ impl <R: BufRead> FastxRead for FastqReader<R> {
             Some(fastq) => fastq,
             None => return Ok(None)
         };
-        Ok(Some(Record::from_fastq(buffer)?))
+        Ok(Some(buffer))
     }
 }
 
