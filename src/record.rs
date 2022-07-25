@@ -1,6 +1,3 @@
-use anyhow::{anyhow, Result};
-use memchr::memchr;
-
 /// An instance of a Fastx Record.
 /// This is a two attribute object containing the sequence
 /// ID and the Sequence.
@@ -9,6 +6,7 @@ pub struct Record {
     data: Vec<u8>,
     id: usize,
     seq: usize,
+    plus: Option<usize>,
     qual: Option<usize>
 }
 impl Record {
@@ -24,64 +22,23 @@ impl Record {
             data: Vec::new(),
             id: 0,
             seq: 0,
+            plus: None,
             qual: None
         }
     }
 
-    /// Initializes a record from fasta data
-    pub fn from_fasta(data: Vec<u8>) -> Result<Self> {
-
-        let id = match memchr(b'\n', &data) {
-            Some(index) => index,
-            None => return Err(anyhow!("Unexpected Termination in header"))
-        };
-        
-        let seq = match memchr(b'\n', &data[id+1..]) {
-            Some(index) => index,
-            None => return Err(anyhow!("Unexpected Termination in sequence"))
-        };
-        
-        Ok(
-            Self {
-                data,
-                id,
-                seq,
-                qual: None
-            }
-        )
+    pub fn new_fasta(data: Vec<u8>, id: usize, seq: usize) -> Self {
+        Self {
+            data, id, seq, 
+            plus: None, qual: None
+        }
     }
 
-    /// Initializes a record from fastq data
-    pub fn from_fastq(data: Vec<u8>) -> Result<Self> {
-
-        let id = match memchr(b'\n', &data) {
-            Some(index) => index,
-            None => return Err(anyhow!("Unexpected Termination in Header"))
-        };
-
-        let seq = match memchr(b'\n', &data[id+1..]) {
-            Some(index) => index,
-            None => return Err(anyhow!("Unexpected Termination in Sequence"))
-        };
-
-        let plus = match memchr(b'\n', &data[id+seq+2..]) {
-            Some(index) => index,
-            None => return Err(anyhow!("Unexpected Termination in Plus"))
-        };
-
-        let qual = match memchr(b'\n', &data[id+seq+plus+3..]) {
-            Some(index) => index,
-            None => return Err(anyhow!("Unexpected Termination in Qual"))
-        };
-
-        Ok(
-            Self {
-                data,
-                id,
-                seq,
-                qual: Some(qual)
-            }
-        )
+    pub fn new_fastq(data: Vec<u8>, id: usize, seq: usize, plus:usize, qual: usize) -> Self {
+        Self {
+            data, id, seq, 
+            plus: Some(plus), qual: Some(qual)
+        }
     }
 
     /// Checks if `[Record]` is empty
@@ -91,20 +48,37 @@ impl Record {
 
     /// Returns a reference of the sequence ID
     pub fn id(&self) -> &[u8] {
-        &self.data[..self.id]
+        &self.data[..self.id-1]
     }
 
     /// Returns a reference of the sequence 
     pub fn seq(&self) -> &[u8] {
-        &self.data[self.id+1..self.id+1+self.seq]
+        &self.data[self.id..self.id+self.seq-1]
+    }
+
+    /// Returns a reference of the '+' region of a fastq
+    pub fn plus(&self) -> Option<&[u8]> {
+        match self.plus {
+            Some(plus) => Some(&self.data[self.id+self.seq..self.id+self.seq+plus-1]),
+            None => None
+        }
     }
 
     /// Returns a reference of the sequence 
     pub fn qual(&self) -> Option<&[u8]> {
+        let plus = match self.plus {
+            Some(plus) => plus,
+            None => return None
+        };
         match self.qual {
-            Some(qual) => Some(&self.data[self.id+self.seq+4..self.id+self.seq+4+qual]),
+            Some(qual) => Some(&self.data[self.id+self.seq+plus..self.id+self.seq+plus+qual-1]),
             None => None
         }
+    }
+
+    /// Returns a reference to the raw data underlying the record
+    pub fn data(&self) -> &[u8] {
+        &self.data
     }
 
     /// Validates that the record is not partially constructed
@@ -146,36 +120,36 @@ impl Record {
 mod test {
     use super::Record;
 
-    fn gen_valid_fasta() -> Vec<u8> {
-        b"seq.0\nACGT\n".to_vec()
+    fn gen_valid_fasta() -> (Vec<u8>, usize, usize) {
+        (b"seq.0\nACGT\n".to_vec(), 6, 5)
     }
 
-    fn gen_valid_fasta_rev() -> Vec<u8> {
-        b"seq.0\nATCGGCTA\n".to_vec()
+    fn gen_invalid_fasta() -> (Vec<u8>, usize, usize) {
+        (b"seq.0\nABCD\n".to_vec(), 6, 5)
     }
 
-    fn gen_valid_fasta_rev_lower() -> Vec<u8> {
-        b"seq.0\natcggcta\n".to_vec()
+    fn gen_valid_fasta_lower() -> (Vec<u8>, usize, usize) {
+        (b"seq.0\nacgt\n".to_vec(), 6, 5)
     }
 
-    fn gen_invalid_fasta() -> Vec<u8> {
-        b"seq.0\nABCD\n".to_vec()
+    fn gen_invalid_fasta_lower() -> (Vec<u8>, usize, usize) {
+        (b"seq.0\nabcd\n".to_vec(), 6, 5)
     }
 
-    fn gen_valid_fasta_lower() -> Vec<u8> {
-        b"seq.0\nacgt\n".to_vec()
+    fn gen_valid_fasta_rev() -> (Vec<u8>, usize, usize) {
+        (b"seq.0\nATCGGCTA\n".to_vec(), 6, 9)
     }
 
-    fn gen_invalid_fasta_lower() -> Vec<u8> {
-        b"seq.0\nabcd\n".to_vec()
+    fn gen_valid_fasta_rev_lower() -> (Vec<u8>, usize, usize) {
+        (b"seq.0\natcggcta\n".to_vec(), 6, 9)
     }
 
-    fn gen_valid_fastq() -> Vec<u8> {
-        b"seq.0\nACGT\n+\n1234\n".to_vec()
+    fn gen_valid_fastq() -> (Vec<u8>, usize, usize, usize, usize) {
+        (b"seq.0\nACGT\n+\n1234\n".to_vec(), 6, 5, 2, 5)
     }
 
-    fn gen_invalid_fastq() -> Vec<u8> {
-        b"seq.0\nABCD\n+\n1234\n".to_vec()
+    fn gen_invalid_fastq() -> (Vec<u8>, usize, usize, usize, usize) {
+        (b"seq.0\nABCD\n+\n1234\n".to_vec(), 6, 5, 2, 5)
     }
 
     #[test]
@@ -187,8 +161,8 @@ mod test {
 
     #[test]
     fn valid_fasta() {
-        let fasta = gen_valid_fasta();
-        let record = Record::from_fasta(fasta).unwrap();
+        let (fasta, id, seq) = gen_valid_fasta();
+        let record = Record::new_fasta(fasta, id, seq);
         assert!(!record.empty());
         assert!(record.valid());
         assert_eq!(record.id(), b"seq.0");
@@ -197,63 +171,74 @@ mod test {
 
     #[test]
     fn invalid_fasta() {
-        let fasta = gen_invalid_fasta();
-        let record = Record::from_fasta(fasta).unwrap();
+        let (fasta, id, seq) = gen_invalid_fasta();
+        let record = Record::new_fasta(fasta, id, seq);
         assert!(!record.empty());
         assert!(!record.valid());
     }
 
     #[test]
     fn valid_fastq() {
-        let fastq = gen_valid_fastq();
-        let record = Record::from_fastq(fastq).unwrap();
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let record = Record::new_fastq(fasta, id, seq, plus, qual);
         assert!(!record.empty());
         assert!(record.valid());
+        assert_eq!(record.id(), b"seq.0");
+        assert_eq!(record.seq(), b"ACGT");
+        assert_eq!(record.plus().unwrap(), b"+");
+        assert_eq!(record.qual().unwrap(), b"1234");
     }
 
     #[test]
     fn invalid_fastq() {
-        let fastq = gen_invalid_fastq();
-        let record = Record::from_fastq(fastq).unwrap();
+        let (fasta, id, seq, plus, qual) = gen_invalid_fastq();
+        let record = Record::new_fastq(fasta, id, seq, plus, qual);
         assert!(!record.empty());
         assert!(!record.valid());
     }
 
     #[test]
     fn valid_lowercase() {
-        let fasta = gen_valid_fasta_lower();
-        let record = Record::from_fasta(fasta).unwrap();
+        let (fasta, id, seq) = gen_valid_fasta_lower();
+        let record = Record::new_fasta(fasta, id, seq);
         assert!(!record.empty());
         assert!(record.valid());
+        assert_eq!(record.id(), b"seq.0");
+        assert_eq!(record.seq(), b"acgt");
     }
 
     #[test]
     fn invalid_lowercase() {
-        let fasta = gen_invalid_fasta_lower();
-        let record = Record::from_fasta(fasta).unwrap();
+        let (fasta, id, seq) = gen_invalid_fasta_lower();
+        let record = Record::new_fasta(fasta, id, seq);
         assert!(!record.empty());
         assert!(!record.valid());
     }
 
     #[test]
     fn upper_conversion() {
-        let fasta = gen_valid_fasta_lower();
-        let record = Record::from_fasta(fasta).unwrap();
+        let (fasta, id, seq) = gen_valid_fasta_lower();
+        let record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
         assert_eq!(record.seq_upper(), b"ACGT");
     }
 
     #[test]
     fn reverse_complement() {
-        let fasta = gen_valid_fasta_rev();
-        let record = Record::from_fasta(fasta).unwrap();
+        let (fasta, id, seq) = gen_valid_fasta_rev();
+        let record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
         assert_eq!(record.seq_rev_comp(), b"TAGCCGAT");
     }
 
     #[test]
     fn reverse_complement_lower() {
-        let fasta = gen_valid_fasta_rev_lower();
-        let record = Record::from_fasta(fasta).unwrap();
+        let (fasta, id, seq) = gen_valid_fasta_rev_lower();
+        let record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
         assert_eq!(record.seq_rev_comp(), b"tagccgat");
     }
-
 }
