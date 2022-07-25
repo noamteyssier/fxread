@@ -1,14 +1,45 @@
 use std::io::BufRead;
-use anyhow::{anyhow, Result};
-use bstr::io::{BufReadExt, ByteRecords};
-
+use anyhow::{Result, anyhow};
 use super::fastx::FastxRead;
 use super::record::Record;
 
+pub struct FastaBytes<B> {
+    buf: B
+}
+
+impl <B: BufRead> Iterator for FastaBytes<B> {
+    type Item = Result<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut bytes = Vec::with_capacity(300);
+        let mut null = Vec::with_capacity(5);
+
+        let _marker = match self.buf.read_until(b'>', &mut null) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(1) => {},
+            Ok(_) => return Some(Err(anyhow!("Misplaced Fasta Marker Sequence '>'")))
+        };
+        let id = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let seq = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let record = Record::new_fasta(bytes, id, seq);
+        Some(Ok(record))
+    }
+
+}
+
+
 /// A Fasta Reader implementation.
 pub struct FastaReader <R: BufRead> {
-    reader: ByteRecords<R>,
-    init: bool
+    reader: FastaBytes<R>
 }
 impl <R: BufRead> FastaReader <R> {
 
@@ -28,34 +59,25 @@ impl <R: BufRead> FastaReader <R> {
     /// let reader = fxread::FastaReader::new(buffer);
     /// ```
     pub fn new(reader: R) -> Self {
-        Self { reader: reader.byte_records(b'>'), init: false }
+        Self { reader: FastaBytes { buf: reader } }
     }
 
-    fn next_buffer(&mut self) -> Result<Option<Vec<u8>>> {
+    fn next_buffer(&mut self) -> Result<Option<Record>> {
         let buffer = match self.reader.next() {
-            Some(line) => line,
-            None => return Ok(None)
-        }?;
-
-        if !self.init {
-            match buffer.len() == 0 {
-                true => {self.init = true; self.next_buffer()},
-                false => return Err(anyhow!("Provided FASTA does not begin with '>'"))
-            }
-        }
-        else { Ok(Some(buffer)) }
+            Some(line) => Some(line?),
+            None => None
+        };
+        Ok(buffer)
     }
-
 }
 
 impl <R: BufRead> FastxRead for FastaReader<R> {
-
     fn next_record(&mut self) -> Result<Option<Record>> {
         let buffer = match self.next_buffer()? {
-            Some(fasta) => fasta,
+            Some(fastq) => fastq,
             None => return Ok(None)
         };
-        Ok(Some(Record::from_fasta(buffer)?))
+        Ok(Some(buffer))
     }
 }
 
