@@ -1,3 +1,5 @@
+![coverage](https://github.com/noamteyssier/fxread/actions/workflows/coverage.yml/badge.svg)
+
 # fxread
 A barebones fastx reader for rust.
 
