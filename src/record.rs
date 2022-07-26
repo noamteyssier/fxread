@@ -143,7 +143,12 @@ impl Record {
             _ => false
         })
     }
+}
 
+impl Default for Record {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
