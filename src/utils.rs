@@ -9,6 +9,8 @@ use super::{
     Record
 };
 
+const BUFFER_SIZE: usize = 4096 * 68;
+
 /// Handles the algebraic enumerations of possible expected file types.
 /// This is either a Fasta/Fastq and whether or not it is Gzipped.
 #[derive(Debug)]
@@ -44,12 +46,12 @@ fn initialize_generic_buffer(
         true => {
             let file = File::open(path)?;
             let gzip = MultiGzDecoder::new(file);
-            let buffer = BufReader::new(gzip);
+            let buffer = BufReader::with_capacity(BUFFER_SIZE, gzip);
             Ok(Box::new(buffer))
         }
         false => {
             let file = File::open(path)?;
-            let buffer = BufReader::new(file);
+            let buffer = BufReader::with_capacity(BUFFER_SIZE, file);
             Ok(Box::new(buffer))
         }
     }
@@ -80,7 +82,6 @@ fn initialize_generic_reader(
 /// let path = "example/sequences.fa";
 /// let reader = initialize_reader(path).unwrap();
 /// reader
-///     .into_iter()
 ///     .for_each(|record| println!("{:?}", record));
 /// ```
 ///
@@ -94,7 +95,6 @@ fn initialize_generic_reader(
 /// let path = "example/sequences.fa.gz";
 /// let reader = initialize_reader(path).unwrap();
 /// reader
-///     .into_iter()
 ///     .for_each(|record| println!("{:?}", record));
 /// ```
 ///
@@ -106,7 +106,6 @@ fn initialize_generic_reader(
 /// let path = "example/sequences.fq";
 /// let reader = initialize_reader(path).unwrap();
 /// reader
-///     .into_iter()
 ///     .for_each(|record| println!("{:?}", record));
 ///
 /// ```
@@ -118,7 +117,6 @@ fn initialize_generic_reader(
 /// let path = "example/sequences.fq.gz";
 /// let reader = initialize_reader(path).unwrap();
 /// reader
-///     .into_iter()
 ///     .for_each(|record| println!("{:?}", record));
 /// ```
 pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>>{

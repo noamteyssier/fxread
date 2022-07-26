@@ -23,7 +23,6 @@
 //! let path = "example/sequences.fa";
 //! let reader = initialize_reader(path).unwrap();
 //! reader
-//!     .into_iter()
 //!     .for_each(|record| println!("{:?}", record));
 //! ```
 

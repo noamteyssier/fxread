@@ -1,12 +1,56 @@
 use std::io::BufRead;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
+
 use super::fastx::FastxRead;
 use super::record::Record;
 
-/// A Fastq Reader implementation.
+/// Struct to handle the Byte Reading for Fasta Formatted Files. 
+/// Heavily inspired from bstr ByteRecord.
+pub struct FastqBytes<B> {
+    buf: B
+}
+
+impl <B: BufRead> Iterator for FastqBytes<B> {
+    type Item = Result<Record>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut bytes = Vec::with_capacity(300);
+        let mut null = Vec::with_capacity(5);
+
+        let _marker = match self.buf.read_until(b'@', &mut null) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(1) => {},
+            Ok(_) => return Some(Err(anyhow!("Misplaced Fastq Marker Sequence '@'")))
+        };
+        let id = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let seq = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let plus = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let qual = match self.buf.read_until(b'\n', &mut bytes) {
+            Err(why) => return Some(Err(anyhow!(why))),
+            Ok(0) => return None,
+            Ok(x) => x
+        };
+        let record = Record::new_fastq(bytes, id, seq, plus, qual);
+        Some(Ok(record))
+    }
+
+}
+
 pub struct FastqReader <R: BufRead> {
-    reader: R,
-    buffer: String
+    reader: FastqBytes<R>
 }
 impl <R: BufRead> FastqReader <R> {
 
@@ -15,7 +59,7 @@ impl <R: BufRead> FastqReader <R> {
     /// which implements [`BufRead`].
     ///
     /// ```
-    /// let fastq: &'static [u8] = b">sequence.id\nACGTACGT\n+\n$^$%^2@@";
+    /// let fastq: &'static [u8] = b">sequence.id\nACGTACGT\n+\n$^$%^AA";
     /// let reader = fxread::FastqReader::new(fastq);
     /// ```
     ///
@@ -26,55 +70,25 @@ impl <R: BufRead> FastqReader <R> {
     /// let reader = fxread::FastqReader::new(buffer);
     /// ```
     pub fn new(reader: R) -> Self {
-        Self { 
-            reader,
-            buffer: String::new()
-        }
+        Self { reader: FastqBytes { buf: reader } }
     }
 
-    fn next_line(&mut self) -> Result<bool> {
-        Ok(self.reader.read_line(&mut self.buffer)? > 0)
-    }
-
-    fn parse_header(&self, token: &str) -> Result<String> {
-        match token.starts_with('@') {
-            false => Err(anyhow::anyhow!("Header does not begin with '@': {}", token)),
-            true => Ok(token
-                        .trim_start_matches('@')
-                        .trim_end()
-                        .to_string())
-        }
-    }
-
-    fn parse_sequence(&self, token: &str) -> String {
-        token.trim_end().to_string()
+    fn next_buffer(&mut self) -> Result<Option<Record>> {
+        let buffer = match self.reader.next() {
+            Some(line) => Some(line?),
+            None => None
+        };
+        Ok(buffer)
     }
 }
 
 impl <R: BufRead> FastxRead for FastqReader<R> {
     fn next_record(&mut self) -> Result<Option<Record>> {
-        let mut record = Record::new();
-
-        for idx in 0..4 {
-            self.buffer.clear();
-            if !self.next_line()? { break }
-            match idx {
-                0 => {
-                    record.set_id(self.parse_header(&self.buffer)?)
-                },
-                1 => {
-                    record.set_seq(self.parse_sequence(&self.buffer))
-                },
-                _ => { }
-            }
-        }
-
-        if record.empty() {
-            Ok(None)
-        }
-        else {
-            Ok(Some(record))
-        }
+        let buffer = match self.next_buffer()? {
+            Some(fastq) => fastq,
+            None => return Ok(None)
+        };
+        Ok(Some(buffer))
     }
 }
 
@@ -100,18 +114,18 @@ mod tests {
     
     #[test]
     fn read_string() {
-        let fastq: &'static [u8] = b"@seq.id\nACGT\n+\n7162";
+        let fastq: &'static [u8] = b"@seq.id\nACGT\n+\n7162\n";
         let mut reader = FastqReader::new(fastq);
         let record = reader.next();
         assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.id");
-        assert_eq!(record.as_ref().unwrap().seq(), "ACGT");
+        assert_eq!(record.as_ref().unwrap().id(), b"seq.id");
+        assert_eq!(record.as_ref().unwrap().seq(), b"ACGT");
         assert_eq!(reader.into_iter().count(), 0);
     }
 
     #[test]
     fn unexpected_chars() {
-        let fastq: &'static [u8] = b"@seq.id\nABCD\n+\n7162";
+        let fastq: &'static [u8] = b"@seq.id\nABCD\n+\n7162\n";
         let mut reader = FastqReader::new(fastq);
         let record = reader.next().unwrap();
         assert!(!record.valid())
@@ -119,10 +133,10 @@ mod tests {
 
     #[test]
     fn lower_to_upper() {
-        let fastq: &'static [u8] = b"@seq.id\nacgt\n+\n7162";
+        let fastq: &'static [u8] = b"@seq.id\nacgt\n+\n7162\n";
         let mut reader = FastqReader::new(fastq);
         let record = reader.next().unwrap();
-        assert_eq!(record.seq_upper(), String::from("ACGT"));
+        assert_eq!(record.seq_upper(), b"ACGT");
     }
 
     #[test]
@@ -132,8 +146,8 @@ mod tests {
         let mut reader = FastqReader::new(buffer);
         let record = reader.next();
         assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.0");
-        assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
+        assert_eq!(record.as_ref().unwrap().id(), b"seq.0");
+        assert_eq!(record.as_ref().unwrap().seq(), b"TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
         assert_eq!(reader.into_iter().count(), 9);
     }
 
@@ -145,8 +159,8 @@ mod tests {
         let mut reader = FastqReader::new(buffer);
         let record = reader.next();
         assert!(record.as_ref().is_some());
-        assert_eq!(record.as_ref().unwrap().id(), "seq.0");
-        assert_eq!(record.as_ref().unwrap().seq(), "TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
+        assert_eq!(record.as_ref().unwrap().id(), b"seq.0");
+        assert_eq!(record.as_ref().unwrap().seq(), b"TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
         assert_eq!(reader.into_iter().count(), 9);
     }
 }
