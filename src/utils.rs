@@ -82,7 +82,6 @@ fn initialize_generic_reader(
 /// let path = "example/sequences.fa";
 /// let reader = initialize_reader(path).unwrap();
 /// reader
-///     .into_iter()
 ///     .for_each(|record| println!("{:?}", record));
 /// ```
 ///
@@ -96,7 +95,6 @@ fn initialize_generic_reader(
 /// let path = "example/sequences.fa.gz";
 /// let reader = initialize_reader(path).unwrap();
 /// reader
-///     .into_iter()
 ///     .for_each(|record| println!("{:?}", record));
 /// ```
 ///
@@ -108,7 +106,6 @@ fn initialize_generic_reader(
 /// let path = "example/sequences.fq";
 /// let reader = initialize_reader(path).unwrap();
 /// reader
-///     .into_iter()
 ///     .for_each(|record| println!("{:?}", record));
 ///
 /// ```
@@ -120,7 +117,6 @@ fn initialize_generic_reader(
 /// let path = "example/sequences.fq.gz";
 /// let reader = initialize_reader(path).unwrap();
 /// reader
-///     .into_iter()
 ///     .for_each(|record| println!("{:?}", record));
 /// ```
 pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>>{
