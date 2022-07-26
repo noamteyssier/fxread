@@ -131,7 +131,7 @@ impl Record {
         self.seq()
             .iter()
             .rev()
-            .map(|c| if c & 2 != 0 { c ^ 4 } else { c ^ 21 })
+            .map(|c| if c & 2 == 0 { c ^ 21 } else { c ^ 4 })
             .collect()
     }
 
