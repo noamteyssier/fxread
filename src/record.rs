@@ -138,10 +138,7 @@ impl Record {
     /// Validates whether sequence is composed
     /// of valid nucleotides
     fn valid_sequence(&self) -> bool {
-        self.seq().iter().all(|b| match b {
-            b'A'|b'a'|b'C'|b'c'|b'G'|b'g'|b'T'|b't'|b'N'|b'n'|b'U'|b'u' => true,
-            _ => false
-        })
+        self.seq().iter().all(|b| matches!(b, b'A'|b'a'|b'C'|b'c'|b'G'|b'g'|b'T'|b't'|b'N'|b'n'|b'U'|b'u'))
     }
 }
 
