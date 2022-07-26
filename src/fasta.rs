@@ -16,7 +16,7 @@ impl <B: BufRead> Iterator for FastaBytes<B> {
         let mut bytes = Vec::with_capacity(300);
         let mut null = Vec::with_capacity(5);
 
-        let _marker = match self.buf.read_until(b'>', &mut null) {
+        match self.buf.read_until(b'>', &mut null) {
             Err(why) => return Some(Err(anyhow!(why))),
             Ok(0) => return None,
             Ok(1) => {},
