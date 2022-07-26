@@ -4,7 +4,7 @@ A barebones fastx reader for rust.
 ## Summary
 This crate attempts to be a faster and more lightweight alternative to [`bio-rs`](https://crates.io/crates/bio) and provides a standardized interface to working with fasta and fastq formats.
 The goal of this crate is to be fast and flexible - it is about twice as fast as [`bio-rs`](https://crates.io/crates/bio) on average but about half as fast than [`fastq`](https://crates.io/crates/fastq) for standard fastx files. 
-The difference between the different crates is reduced heavily though once gzip files are included. 
+The difference between the different crates is reduced heavily though once gzip files are included (see [benchmark](https://github.com/noamteyssier/fxread_benchmark)). 
 
 The speed up can be attributed to reducing the total number of vectors allocated for each record - but the limitation compared to [`fastq`](https://crates.io/crates/bio) is that each record has ownership over its data and is allocated once.
 This creates extra overhead, but is very convenient as you can treat the reader directly as an iterator.
