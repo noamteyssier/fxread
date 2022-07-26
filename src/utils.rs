@@ -42,18 +42,16 @@ fn initialize_generic_buffer(
         path: &str, 
         is_gzip: bool) -> Result<Box<dyn BufRead>> 
 {
-    match is_gzip {
-        true => {
-            let file = File::open(path)?;
-            let gzip = MultiGzDecoder::new(file);
-            let buffer = BufReader::with_capacity(BUFFER_SIZE, gzip);
-            Ok(Box::new(buffer))
-        }
-        false => {
-            let file = File::open(path)?;
-            let buffer = BufReader::with_capacity(BUFFER_SIZE, file);
-            Ok(Box::new(buffer))
-        }
+    if is_gzip {
+        let file = File::open(path)?;
+        let gzip = MultiGzDecoder::new(file);
+        let buffer = BufReader::with_capacity(BUFFER_SIZE, gzip);
+        Ok(Box::new(buffer))
+    }
+    else {
+        let file = File::open(path)?;
+        let buffer = BufReader::with_capacity(BUFFER_SIZE, file);
+        Ok(Box::new(buffer))
     }
 }
 
@@ -61,10 +59,7 @@ fn initialize_generic_reader(
         buffer: Box<dyn BufRead>, 
         is_fasta: bool) -> Box<dyn FastxRead<Item = Record>> 
 {
-    match is_fasta {
-        true => Box::new(FastaReader::new(buffer)),
-        false => Box::new(FastqReader::new(buffer))
-    }
+    if is_fasta { Box::new(FastaReader::new(buffer)) } else { Box::new(FastqReader::new(buffer)) }
 }
 
 /// # Initializing a reader dependent on the file path extensions.

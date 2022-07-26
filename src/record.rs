@@ -17,7 +17,7 @@ impl Record {
     /// let record = fxread::Record::new();
     /// assert!(record.empty());
     /// ```
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             data: Vec::new(),
             id: 0,
@@ -40,7 +40,7 @@ impl Record {
     /// assert_eq!(fasta.id(), b"seq.0");
     /// assert_eq!(fasta.seq(), b"ACGT");
     /// ```
-    pub fn new_fasta(data: Vec<u8>, id: usize, seq: usize) -> Self {
+    #[must_use] pub fn new_fasta(data: Vec<u8>, id: usize, seq: usize) -> Self {
         Self {
             data, id, seq, 
             plus: None, qual: None
@@ -64,7 +64,7 @@ impl Record {
     /// assert_eq!(fasta.plus().unwrap(), b"+");
     /// assert_eq!(fasta.qual().unwrap(), b"1234");
     /// ```
-    pub fn new_fastq(data: Vec<u8>, id: usize, seq: usize, plus:usize, qual: usize) -> Self {
+    #[must_use] pub fn new_fastq(data: Vec<u8>, id: usize, seq: usize, plus:usize, qual: usize) -> Self {
         Self {
             data, id, seq, 
             plus: Some(plus), qual: Some(qual)
@@ -72,22 +72,22 @@ impl Record {
     }
 
     /// Checks if `[Record]` is empty
-    pub fn empty(&self) -> bool {
+    #[must_use] pub fn empty(&self) -> bool {
         (self.id == 0) | (self.seq == 0)
     }
 
     /// Returns a reference of the sequence ID
-    pub fn id(&self) -> &[u8] {
+    #[must_use] pub fn id(&self) -> &[u8] {
         &self.data[..self.id-1]
     }
 
     /// Returns a reference of the sequence 
-    pub fn seq(&self) -> &[u8] {
+    #[must_use] pub fn seq(&self) -> &[u8] {
         &self.data[self.id..self.id+self.seq-1]
     }
 
     /// Returns a reference of the '+' region of a fastq
-    pub fn plus(&self) -> Option<&[u8]> {
+    #[must_use] pub fn plus(&self) -> Option<&[u8]> {
         match self.plus {
             Some(plus) => Some(&self.data[self.id+self.seq..self.id+self.seq+plus-1]),
             None => None
@@ -95,7 +95,7 @@ impl Record {
     }
 
     /// Returns a reference of the sequence 
-    pub fn qual(&self) -> Option<&[u8]> {
+    #[must_use] pub fn qual(&self) -> Option<&[u8]> {
         let plus = match self.plus {
             Some(plus) => plus,
             None => return None
@@ -107,19 +107,19 @@ impl Record {
     }
 
     /// Returns a reference to the raw data underlying the record
-    pub fn data(&self) -> &[u8] {
+    #[must_use] pub fn data(&self) -> &[u8] {
         &self.data
     }
 
     /// Validates that the record is not partially constructed
     /// or composed of unexpected nucleotides
-    pub fn valid(&self) -> bool {
+    #[must_use] pub fn valid(&self) -> bool {
         if self.empty() { false }
         else { self.valid_sequence() }
     }
 
     /// Converts the sequence to uppercase
-    pub fn seq_upper(&self) -> Vec<u8> {
+    #[must_use] pub fn seq_upper(&self) -> Vec<u8> {
         self.seq()
             .iter()
             .map(|c| if c & b' ' == 0 { *c } else { c ^ b' ' })
@@ -127,23 +127,25 @@ impl Record {
     }
 
     /// Reverse Complements the sequence
-    pub fn seq_rev_comp(&self) -> Vec<u8> {
+    #[must_use] pub fn seq_rev_comp(&self) -> Vec<u8> {
         self.seq()
             .iter()
             .rev()
-            .map(|c| if c & 2 != 0 { c ^ 4 } else { c ^ 21 })
+            .map(|c| if c & 2 == 0 { c ^ 21 } else { c ^ 4 })
             .collect()
     }
 
     /// Validates whether sequence is composed
     /// of valid nucleotides
     fn valid_sequence(&self) -> bool {
-        self.seq().iter().all(|b| match b {
-            b'A'|b'a'|b'C'|b'c'|b'G'|b'g'|b'T'|b't'|b'N'|b'n'|b'U'|b'u' => true,
-            _ => false
-        })
+        self.seq().iter().all(|b| matches!(b, b'A'|b'a'|b'C'|b'c'|b'G'|b'g'|b'T'|b't'|b'N'|b'n'|b'U'|b'u'))
     }
+}
 
+impl Default for Record {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
