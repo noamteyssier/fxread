@@ -1,16 +1,16 @@
+use anyhow::{anyhow, Result};
 use std::io::BufRead;
-use anyhow::{Result, anyhow};
 
 use super::fastx::FastxRead;
 use super::record::Record;
 
-/// Struct to handle the Byte Reading for Fasta Formatted Files. 
+/// Struct to handle the Byte Reading for Fasta Formatted Files.
 /// Heavily inspired from bstr `ByteRecord`.
 pub struct FastqBytes<B> {
-    buf: B
+    buf: B,
 }
 
-impl <B: BufRead> Iterator for FastqBytes<B> {
+impl<B: BufRead> Iterator for FastqBytes<B> {
     type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -20,40 +20,38 @@ impl <B: BufRead> Iterator for FastqBytes<B> {
         match self.buf.read_until(b'@', &mut null) {
             Err(why) => return Some(Err(anyhow!(why))),
             Ok(0) => return None,
-            Ok(1) => {},
-            Ok(_) => return Some(Err(anyhow!("Misplaced Fastq Marker Sequence '@'")))
+            Ok(1) => {}
+            Ok(_) => return Some(Err(anyhow!("Misplaced Fastq Marker Sequence '@'"))),
         };
         let id = match self.buf.read_until(b'\n', &mut bytes) {
             Err(why) => return Some(Err(anyhow!(why))),
             Ok(0) => return None,
-            Ok(x) => x
+            Ok(x) => x,
         };
         let seq = match self.buf.read_until(b'\n', &mut bytes) {
             Err(why) => return Some(Err(anyhow!(why))),
             Ok(0) => return None,
-            Ok(x) => x
+            Ok(x) => x,
         };
         let plus = match self.buf.read_until(b'\n', &mut bytes) {
             Err(why) => return Some(Err(anyhow!(why))),
             Ok(0) => return None,
-            Ok(x) => x
+            Ok(x) => x,
         };
         let qual = match self.buf.read_until(b'\n', &mut bytes) {
             Err(why) => return Some(Err(anyhow!(why))),
             Ok(0) => return None,
-            Ok(x) => x
+            Ok(x) => x,
         };
         let record = Record::new_fastq(bytes, id, seq, plus, qual);
         Some(Ok(record))
     }
-
 }
 
-pub struct FastqReader <R: BufRead> {
-    reader: FastqBytes<R>
+pub struct FastqReader<R: BufRead> {
+    reader: FastqBytes<R>,
 }
-impl <R: BufRead> FastqReader <R> {
-
+impl<R: BufRead> FastqReader<R> {
     /// # Example
     /// Creates a new [`FastqReader`] explicitly from an object
     /// which implements [`BufRead`].
@@ -70,48 +68,48 @@ impl <R: BufRead> FastqReader <R> {
     /// let reader = fxread::FastqReader::new(buffer);
     /// ```
     pub fn new(reader: R) -> Self {
-        Self { reader: FastqBytes { buf: reader } }
+        Self {
+            reader: FastqBytes { buf: reader },
+        }
     }
 
     fn next_buffer(&mut self) -> Result<Option<Record>> {
         let buffer = match self.reader.next() {
             Some(line) => Some(line?),
-            None => None
+            None => None,
         };
         Ok(buffer)
     }
 }
 
-impl <R: BufRead> FastxRead for FastqReader<R> {
+impl<R: BufRead> FastxRead for FastqReader<R> {
     fn next_record(&mut self) -> Result<Option<Record>> {
         let buffer = match self.next_buffer()? {
             Some(fastq) => fastq,
-            None => return Ok(None)
+            None => return Ok(None),
         };
         Ok(Some(buffer))
     }
 }
 
-impl <R: BufRead> Iterator for FastqReader <R> {
-
+impl<R: BufRead> Iterator for FastqReader<R> {
     type Item = Record;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.next_record() {
             Ok(r) => r,
-            Err(why) => panic!("{}", why)
+            Err(why) => panic!("{}", why),
         }
     }
-
 }
 
 #[cfg(test)]
 mod tests {
+    use super::FastqReader;
+    use flate2::read::MultiGzDecoder;
     use std::fs::File;
     use std::io::BufReader;
-    use flate2::read::MultiGzDecoder;
-    use super::FastqReader;
-    
+
     #[test]
     fn read_string() {
         let fastq: &'static [u8] = b"@seq.id\nACGT\n+\n7162\n";
@@ -147,7 +145,10 @@ mod tests {
         let record = reader.next();
         assert!(record.as_ref().is_some());
         assert_eq!(record.as_ref().unwrap().id(), b"seq.0");
-        assert_eq!(record.as_ref().unwrap().seq(), b"TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
+        assert_eq!(
+            record.as_ref().unwrap().seq(),
+            b"TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA"
+        );
         assert_eq!(reader.into_iter().count(), 9);
     }
 
@@ -160,7 +161,10 @@ mod tests {
         let record = reader.next();
         assert!(record.as_ref().is_some());
         assert_eq!(record.as_ref().unwrap().id(), b"seq.0");
-        assert_eq!(record.as_ref().unwrap().seq(), b"TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA");
+        assert_eq!(
+            record.as_ref().unwrap().seq(),
+            b"TAGTGCTTTCGATGGAACTGGACCGAGAATTCTATCGCAAATGGAACCGGAGTGACGGTGTTTCTAGACGCTCCTCACAA"
+        );
         assert_eq!(reader.into_iter().count(), 9);
     }
 }

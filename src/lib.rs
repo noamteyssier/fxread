@@ -1,5 +1,5 @@
 //! # Summary
-//! This is a package to handle reading of fastx records. 
+//! This is a package to handle reading of fastx records.
 //!
 //! fastx records are defined from fasta or fastq formats but a fastx
 //! record is one with an id and sequence regardless of its input format.
@@ -10,7 +10,7 @@
 //!
 //! This package also handles the creation of a [`FastxRead`] capable reader from
 //! the naming of an input file using dynamic dispatch. This utility is found in
-//! [`initialize_reader`]. Please see usage for example usages or each items 
+//! [`initialize_reader`]. Please see usage for example usages or each items
 //! unit tests.
 //!
 //! # Usage
@@ -42,8 +42,8 @@ pub mod fasta;
 /// the correct fastx reader.
 pub mod utils;
 
-pub use fastx::FastxRead;
 pub use fasta::FastaReader;
 pub use fastq::FastqReader;
+pub use fastx::FastxRead;
 pub use record::Record;
 pub use utils::initialize_reader;
