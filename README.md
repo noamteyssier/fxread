@@ -1,7 +1,13 @@
 # fxread
+
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md)
+![actions status](https://github.com/noamteyssier/fxread/workflows/CI/badge.svg)
+[![codecov](https://codecov.io/gh/noamteyssier/fxread/branch/main/graph/badge.svg?token=N0TEG1JVJ8)](https://codecov.io/gh/noamteyssier/fxread)
+
 A barebones fastx reader for rust.
 
 ## Summary
+
 This crate attempts to be a faster and more lightweight alternative to [`bio-rs`](https://crates.io/crates/bio) and provides a standardized interface to working with fasta and fastq formats.
 The goal of this crate is to be fast and flexible - it is about twice as fast as [`bio-rs`](https://crates.io/crates/bio) on average but about half as fast than [`fastq`](https://crates.io/crates/fastq) for standard fastx files. 
 The difference between the different crates is reduced heavily though once gzip files are included (see [benchmark](https://github.com/noamteyssier/fxread_benchmark)). 
@@ -10,9 +16,11 @@ The speed up can be attributed to reducing the total number of vectors allocated
 This creates extra overhead, but is very convenient as you can treat the reader directly as an iterator.
 
 ## Usage
+
 Some benefits of this interface is that each `FastaReader` and `FastqReader` share the `FastxReader` trait and act as iterators over `Record`s.
 
 ### `initialize_reader` can determine the fastq format from the path name
+
 ```rust
 use fxread::initialize_reader;
 
@@ -22,6 +30,7 @@ assert_eq!(reader.count(), 10);
 ```
 
 ### `initialize_reader` can handle if the file is gzip or not without changing the downstream usage
+
 ```rust
 use fxread::initialize_reader;
 
