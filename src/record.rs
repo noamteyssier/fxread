@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 /// An instance of a Fastx Record.
 /// This is a two attribute object containing the sequence
 /// ID and the Sequence.
@@ -79,66 +81,114 @@ impl Record {
         }
     }
 
+    /// Checks if `[Record]` is a fasta
+    #[must_use]
+    pub fn is_fasta(&self) -> bool {
+        self.plus.is_none() & self.qual.is_none()
+    }
+
+    /// Checks if `[Record]` is a fastq
+    #[must_use]
+    pub fn is_fastq(&self) -> bool {
+        self.plus.is_some() & self.qual.is_some()
+    }
+
+    /// Checks if `[Record]` has a valid header
+    #[must_use]
+    pub fn valid_header(&self) -> bool {
+        if self.is_fasta() {
+            self.data[0] == b'>'
+        } else {
+            self.data[0] == b'@'
+        }
+    }
+
     /// Checks if `[Record]` is empty
     #[must_use]
     pub fn empty(&self) -> bool {
         (self.id == 0) | (self.seq == 0)
     }
 
+    /// Returns the Range of the ID
+    #[must_use]
+    pub fn id_range(&self) -> Range<usize> {
+        1..self.id
+    }
+
+    /// Returns the Range of the sequence
+    #[must_use]
+    pub fn seq_range(&self) -> Range<usize> {
+        1+self.id..self.id + self.seq
+    }
+
+    /// Returns the Range of the '+' region of a fastq
+    #[must_use]
+    pub fn plus_range(&self) -> Option<Range<usize>> {
+        match self.plus {
+            Some(plus) => Some(1+self.id + self.seq..self.id + self.seq + plus),
+            None => None,
+        }
+    }
+
+    /// Returns the Range of the quality score if it exists
+    #[must_use]
+    pub fn qual_range(&self) -> Option<Range<usize>> {
+        let plus = match self.plus {
+            Some(plus) => plus,
+            None => return None,
+        };
+        match self.qual {
+            Some(qual) => Some(1+self.id + self.seq + plus..self.id + self.seq + plus + qual),
+            None => None,
+        }
+    }
+
     /// Returns a reference of the sequence ID
     #[must_use]
     pub fn id(&self) -> &[u8] {
-        &self.data[..self.id - 1]
+        &self.data[self.id_range()]
     }
 
     /// Returns a reference of the sequence
     #[must_use]
     pub fn seq(&self) -> &[u8] {
-        &self.data[self.id..self.id + self.seq - 1]
+        &self.data[self.seq_range()]
     }
 
     /// Returns a mutable reference of the sequence
     #[must_use]
     pub fn seq_mut(&mut self) -> &mut [u8] {
-        &mut self.data[self.id..self.id + self.seq - 1]
+        let range = self.seq_range();
+        &mut self.data[range]
     }
 
     /// Returns a reference of the '+' region of a fastq
     #[must_use]
     pub fn plus(&self) -> Option<&[u8]> {
-        match self.plus {
-            Some(plus) => Some(&self.data[self.id + self.seq..self.id + self.seq + plus - 1]),
-            None => None,
+        if let Some(range) = self.plus_range() {
+            Some(&self.data[range])
+        } else {
+            None
         }
     }
 
     /// Returns a reference of the sequence
     #[must_use]
     pub fn qual(&self) -> Option<&[u8]> {
-        let plus = match self.plus {
-            Some(plus) => plus,
-            None => return None,
-        };
-        match self.qual {
-            Some(qual) => {
-                Some(&self.data[self.id + self.seq + plus..self.id + self.seq + plus + qual - 1])
-            }
-            None => None,
+        if let Some(range) = self.qual_range() {
+            Some(&self.data[range])
+        } else {
+            None
         }
     }
 
     /// Returns a mutable reference of the quality score if it exists
     #[must_use]
     pub fn qual_mut(&mut self) -> Option<&mut [u8]> {
-        let plus = match self.plus {
-            Some(plus) => plus,
-            None => return None,
-        };
-        match self.qual {
-            Some(qual) => Some(
-                &mut self.data[self.id + self.seq + plus..self.id + self.seq + plus + qual - 1],
-            ),
-            None => None,
+        if let Some(range) = self.qual_range() {
+            Some(&mut self.data[range])
+        } else {
+            None
         }
     }
 
@@ -305,35 +355,35 @@ mod test {
     use super::Record;
 
     fn gen_valid_fasta() -> (Vec<u8>, usize, usize) {
-        (b"seq.0\nACGT\n".to_vec(), 6, 5)
+        (b">seq.0\nACGT\n".to_vec(), 6, 5)
     }
 
     fn gen_invalid_fasta() -> (Vec<u8>, usize, usize) {
-        (b"seq.0\nABCD\n".to_vec(), 6, 5)
+        (b">seq.0\nABCD\n".to_vec(), 6, 5)
     }
 
     fn gen_valid_fasta_lower() -> (Vec<u8>, usize, usize) {
-        (b"seq.0\nacgt\n".to_vec(), 6, 5)
+        (b">seq.0\nacgt\n".to_vec(), 6, 5)
     }
 
     fn gen_invalid_fasta_lower() -> (Vec<u8>, usize, usize) {
-        (b"seq.0\nabcd\n".to_vec(), 6, 5)
+        (b">seq.0\nabcd\n".to_vec(), 6, 5)
     }
 
     fn gen_valid_fasta_rev() -> (Vec<u8>, usize, usize) {
-        (b"seq.0\nATCGGCTA\n".to_vec(), 6, 9)
+        (b">seq.0\nATCGGCTA\n".to_vec(), 6, 9)
     }
 
     fn gen_valid_fasta_rev_lower() -> (Vec<u8>, usize, usize) {
-        (b"seq.0\natcggcta\n".to_vec(), 6, 9)
+        (b">seq.0\natcggcta\n".to_vec(), 6, 9)
     }
 
     fn gen_valid_fastq() -> (Vec<u8>, usize, usize, usize, usize) {
-        (b"seq.0\nACGT\n+\n1234\n".to_vec(), 6, 5, 2, 5)
+        (b"@seq.0\nACGT\n+\n1234\n".to_vec(), 6, 5, 2, 5)
     }
 
     fn gen_invalid_fastq() -> (Vec<u8>, usize, usize, usize, usize) {
-        (b"seq.0\nABCD\n+\n1234\n".to_vec(), 6, 5, 2, 5)
+        (b"@seq.0\nABCD\n+\n1234\n".to_vec(), 6, 5, 2, 5)
     }
 
     #[test]
