@@ -118,14 +118,14 @@ impl Record {
     /// Returns the Range of the sequence
     #[must_use]
     pub fn seq_range(&self) -> Range<usize> {
-        1+self.id..self.id + self.seq
+        1 + self.id..self.id + self.seq
     }
 
     /// Returns the Range of the '+' region of a fastq
     #[must_use]
     pub fn plus_range(&self) -> Option<Range<usize>> {
         match self.plus {
-            Some(plus) => Some(1+self.id + self.seq..self.id + self.seq + plus),
+            Some(plus) => Some(1 + self.id + self.seq..self.id + self.seq + plus),
             None => None,
         }
     }
@@ -138,7 +138,7 @@ impl Record {
             None => return None,
         };
         match self.qual {
-            Some(qual) => Some(1+self.id + self.seq + plus..self.id + self.seq + plus + qual),
+            Some(qual) => Some(1 + self.id + self.seq + plus..self.id + self.seq + plus + qual),
             None => None,
         }
     }
