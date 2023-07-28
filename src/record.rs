@@ -1,5 +1,5 @@
+use anyhow::{bail, Result};
 use std::ops::{Range, RangeInclusive};
-use anyhow::{Result, bail};
 
 pub trait MyRange: Iterator<Item = i32> {
     fn start(&self) -> i32;
@@ -326,7 +326,7 @@ impl Record {
         if size > self.seq {
             bail!("Cannot trim more than the sequence length");
         }
-        
+
         let seq_end = self.seq_range().end;
         let trim_start = seq_end - size;
 
@@ -345,7 +345,6 @@ impl Record {
         }
 
         Ok(())
-
     }
 
     /// Validates whether sequence is composed
