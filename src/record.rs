@@ -230,11 +230,73 @@ impl Record {
             )
         })
     }
+
+    /// Data as str
+    #[must_use]
+    pub fn data_str_checked(&self) -> Result<&str, std::str::Utf8Error> {
+        std::str::from_utf8(self.data())
+    }
+
+    /// ID as str
+    #[must_use]
+    pub fn id_str_checked(&self) -> Result<&str, std::str::Utf8Error> {
+        std::str::from_utf8(self.id())
+    }
+
+    /// Sequence as str
+    #[must_use]
+    pub fn seq_str_checked(&self) -> Result<&str, std::str::Utf8Error> {
+        std::str::from_utf8(self.seq())
+    }
+
+    /// Quality as str
+    #[must_use]
+    pub fn qual_str_checked(&self) -> Option<Result<&str, std::str::Utf8Error>> {
+        if let Some(qual) = self.qual() {
+            Some(std::str::from_utf8(qual))
+        } else {
+            None
+        }
+    }
+
+    /// Data as str unchecked (may panic if invalid utf8)
+    #[must_use]
+    pub fn data_str(&self) -> &str {
+        self.data_str_checked().unwrap()
+    }
+
+    /// ID as str unchecked (may panic if invalid utf8)
+    #[must_use]
+    pub fn id_str(&self) -> &str {
+        self.id_str_checked().unwrap()
+    }
+
+    /// Sequence as str unchecked (may panic if invalid utf8)
+    #[must_use]
+    pub fn seq_str(&self) -> &str {
+        self.seq_str_checked().unwrap()
+    }
+
+    /// Quality as str unchecked (may panic if invalid utf8)
+    #[must_use]
+    pub fn qual_str(&self) -> Option<&str> {
+        self.qual_str_checked().map(|qual| qual.unwrap())
+    }
 }
 
 impl Default for Record {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Into<String> for Record {
+    fn into(self) -> String {
+        let header_char = if self.qual.is_some() { '@' } else { '>' };
+        let mut record = String::with_capacity(self.data.len() + 1);
+        record.push(header_char);
+        record.push_str(self.data_str());
+        record
     }
 }
 
@@ -432,5 +494,33 @@ mod test {
         record.rev_comp();
         assert_eq!(record.seq(), b"ACGT");
         assert_eq!(record.qual().unwrap(), b"4321");
+    }
+
+    #[test]
+    fn fasta_str_methods() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let expected = String::from(">seq.0\nACGT\n");
+        let record = Record::new_fasta(fasta, id, seq);
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.id_str_checked(), Ok("seq.0"));
+        assert_eq!(record.seq_str(), "ACGT");
+        assert_eq!(record.seq_str_checked(), Ok("ACGT"));
+        let repr: String = record.into();
+        assert_eq!(repr, expected);
+    }
+
+    #[test]
+    fn fastq_str_methods() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let expected = String::from("@seq.0\nACGT\n+\n1234\n");
+        let record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACGT");
+        assert_eq!(record.qual_str(), Some("1234"));
+        assert_eq!(record.id_str_checked(), Ok("seq.0"));
+        assert_eq!(record.seq_str_checked(), Ok("ACGT"));
+        assert_eq!(record.qual_str_checked(), Some(Ok("1234")));
+        let repr: String = record.into();
+        assert_eq!(repr, expected);
     }
 }
