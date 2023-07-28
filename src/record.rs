@@ -1,4 +1,26 @@
-use std::ops::Range;
+use std::ops::{Range, RangeInclusive};
+use anyhow::{Result, bail};
+
+pub trait MyRange: Iterator<Item = i32> {
+    fn start(&self) -> i32;
+    fn end(&self) -> i32;
+}
+impl MyRange for Range<i32> {
+    fn start(&self) -> i32 {
+        self.start
+    }
+    fn end(&self) -> i32 {
+        self.end
+    }
+}
+impl MyRange for RangeInclusive<i32> {
+    fn start(&self) -> i32 {
+        *self.start()
+    }
+    fn end(&self) -> i32 {
+        *self.end()
+    }
+}
 
 /// An instance of a Fastx Record.
 /// This is a two attribute object containing the sequence
@@ -268,6 +290,62 @@ impl Record {
         if let Some(qual) = self.qual_mut() {
             qual.reverse();
         }
+    }
+
+    /// Trims the nucleotides from the left of the sequence
+    /// and the corresponding quality scores if present
+    /// Returns an error if the size is greater than the sequence length
+    pub fn trim_left(&mut self, size: usize) -> Result<()> {
+        if size > self.seq {
+            bail!("Cannot trim more than the sequence length");
+        }
+
+        let seq_start = self.seq_range().start;
+        let trim_end = seq_start + size;
+
+        // Trim the sequence
+        self.data.drain(seq_start..trim_end);
+
+        // Update the seq index
+        self.seq = self.seq.saturating_sub(size);
+
+        // Fastq specific update (Trim quality scores)
+        if self.is_fastq() {
+            let qual_start = self.qual_range().unwrap().start;
+            let trim_end = qual_start + size;
+            self.data.drain(qual_start..trim_end);
+            self.qual = Some(self.qual.unwrap().saturating_sub(size));
+        }
+        Ok(())
+    }
+
+    /// Trims the nucleotides from the right of the sequence
+    /// and the corresponding quality scores if present
+    /// Returns an error if the size is greater than the sequence length
+    pub fn trim_right(&mut self, size: usize) -> Result<()> {
+        if size > self.seq {
+            bail!("Cannot trim more than the sequence length");
+        }
+        
+        let seq_end = self.seq_range().end;
+        let trim_start = seq_end - size;
+
+        // Trim the sequence
+        self.data.drain(trim_start..seq_end);
+
+        // Update the seq index
+        self.seq = self.seq.saturating_sub(size);
+
+        // Fastq specific update (Trim quality scores)
+        if self.is_fastq() {
+            let qual_end = self.qual_range().unwrap().end;
+            let trim_start = qual_end - size;
+            self.data.drain(trim_start..qual_end);
+            self.qual = Some(self.qual.unwrap().saturating_sub(size));
+        }
+
+        Ok(())
+
     }
 
     /// Validates whether sequence is composed
@@ -572,5 +650,75 @@ mod test {
         assert_eq!(repr, &expected);
         let repr: String = record.into();
         assert_eq!(repr, expected);
+    }
+
+    #[test]
+    fn fasta_trim_left_oversized() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(record.trim_left(10).is_err());
+    }
+
+    #[test]
+    fn fasta_trim_right_oversized() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(record.trim_right(10).is_err());
+    }
+
+    #[test]
+    fn fastq_trim_left_oversized() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(record.trim_left(10).is_err());
+    }
+
+    #[test]
+    fn fastq_trim_right_oversized() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(record.trim_right(10).is_err());
+    }
+
+    #[test]
+    fn fasta_trim_left() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        record.trim_left(2).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "GT");
+        assert_eq!(record.as_str(), ">seq.0\nGT\n");
+    }
+
+    #[test]
+    fn fastq_trim_left() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        record.trim_left(2).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "GT");
+        assert_eq!(record.qual_str(), Some("34"));
+        assert_eq!(record.as_str(), "@seq.0\nGT\n+\n34\n");
+    }
+
+    #[test]
+    fn fasta_trim_right() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        record.trim_right(2).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "AC");
+        assert_eq!(record.as_str(), ">seq.0\nAC\n");
+    }
+
+    #[test]
+    fn fastq_trim_right() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        record.trim_right(2).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "AC");
+        assert_eq!(record.qual_str(), Some("12"));
+        assert_eq!(record.as_str(), "@seq.0\nAC\n+\n12\n");
     }
 }
