@@ -178,6 +178,47 @@ impl Record {
             .collect()
     }
 
+    /// Converts all non-ACGTN nucleotides to N
+    pub fn fix(&mut self) {
+        self.seq_mut().iter_mut().for_each(|c| {
+            if !matches!(c, b'A' | b'a' | b'C' | b'c' | b'G' | b'g' | b'T' | b't' | b'N' | b'n') {
+                *c = b'N';
+            }
+        });
+    }
+
+    /// Converts the sequence to uppercase in place
+    pub fn upper(&mut self) {
+        self.seq_mut().iter_mut().for_each(|c| {
+            if *c & b' ' != 0 {
+                *c ^= b' ';
+            }
+        });
+    }
+
+
+    /// Reverse Complements the sequence in place
+    /// Also reverses the quality scores if present
+    pub fn rev_comp(&mut self) {
+
+        // Reverse the sequence
+        self.seq_mut().reverse();
+
+        // Complement the sequence
+        self.seq_mut().iter_mut().for_each(|c| {
+            if *c & 2 == 0 {
+                *c ^= 21;
+            } else {
+                *c ^= 4;
+            }
+        });
+
+        // Reverse the quality scores if present
+        if let Some(qual) = self.qual_mut() {
+            qual.reverse();
+        }
+    }
+
     /// Validates whether sequence is composed
     /// of valid nucleotides
     fn valid_sequence(&self) -> bool {
