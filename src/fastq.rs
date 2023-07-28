@@ -15,9 +15,8 @@ impl<B: BufRead> Iterator for FastqBytes<B> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut bytes = Vec::with_capacity(300);
-        let mut null = Vec::with_capacity(5);
 
-        match self.buf.read_until(b'@', &mut null) {
+        match self.buf.read_until(b'@', &mut bytes) {
             Err(why) => return Some(Err(anyhow!(why))),
             Ok(0) => return None,
             Ok(1) => {}
@@ -118,6 +117,7 @@ mod tests {
         assert!(record.as_ref().is_some());
         assert_eq!(record.as_ref().unwrap().id(), b"seq.id");
         assert_eq!(record.as_ref().unwrap().seq(), b"ACGT");
+        assert_eq!(record.as_ref().unwrap().data(), b"@seq.id\nACGT\n+\n7162\n");
         assert_eq!(reader.into_iter().count(), 0);
     }
 
