@@ -127,6 +127,21 @@ impl Record {
         }
     }
 
+    /// Returns a mutable reference of the quality score if it exists
+    #[must_use]
+    pub fn qual_mut(&mut self) -> Option<&mut[u8]> {
+        let plus = match self.plus {
+            Some(plus) => plus,
+            None => return None,
+        };
+        match self.qual {
+            Some(qual) => {
+                Some(&mut self.data[self.id + self.seq + plus..self.id + self.seq + plus + qual - 1])
+            }
+            None => None,
+        }
+    }
+
     /// Returns a reference to the raw data underlying the record
     #[must_use]
     pub fn data(&self) -> &[u8] {
