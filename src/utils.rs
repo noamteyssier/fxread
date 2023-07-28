@@ -141,7 +141,9 @@ pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>
 /// let input = stdin().lock();
 /// let reader = initialize_stdin_reader(input);
 /// ```
-pub fn initialize_stdin_reader<R: BufRead + 'static>(reader: R) -> Result<Box<dyn FastxRead<Item = Record>>> {
+pub fn initialize_stdin_reader<R: BufRead + 'static>(
+    reader: R,
+) -> Result<Box<dyn FastxRead<Item = Record>>> {
     let mut buffer = BufReader::with_capacity(BUFFER_SIZE, reader);
     buffer.fill_buf()?;
     if buffer.buffer().is_empty() {
@@ -151,7 +153,6 @@ pub fn initialize_stdin_reader<R: BufRead + 'static>(reader: R) -> Result<Box<dy
         b'>' => Ok(initialize_generic_reader(Box::new(buffer), true)),
         b'@' => Ok(initialize_generic_reader(Box::new(buffer), false)),
         _ => Err(anyhow::anyhow!("Unrecognized file format")),
-
     }
 }
 
