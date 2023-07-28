@@ -362,4 +362,74 @@ mod test {
         assert!(record.valid());
         assert_eq!(record.seq_rev_comp(), b"tagccgat");
     }
+
+    #[test]
+    fn invalid_fix_fasta() {
+        let (fasta, id, seq) = gen_invalid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(!record.valid());
+        assert_eq!(record.seq(), b"ABCD");
+        record.fix();
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ANCN");
+    }
+
+    #[test]
+    fn invalid_fix_fastq() {
+        let (fasta, id, seq, plus, qual) = gen_invalid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(!record.empty());
+        assert!(!record.valid());
+        assert_eq!(record.seq(), b"ABCD");
+        record.fix();
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ANCN");
+    }
+
+    #[test]
+    fn upper_inplace() {
+        let (fasta, id, seq) = gen_valid_fasta_lower();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"acgt");
+        record.upper();
+        assert_eq!(record.seq(), b"ACGT");
+    }
+
+    #[test]
+    fn upper_nochange_inplace() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ACGT");
+        record.upper();
+        assert_eq!(record.seq(), b"ACGT");
+    }
+
+    #[test]
+    fn reverse_complement_inplace() {
+        let (fasta, id, seq) = gen_valid_fasta_rev();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ATCGGCTA");
+        record.rev_comp();
+        assert_eq!(record.seq(), b"TAGCCGAT");
+    }
+
+    #[test]
+    fn reverse_complement_fastq_inplace() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ACGT");
+        assert_eq!(record.qual().unwrap(), b"1234");
+        record.rev_comp();
+        assert_eq!(record.seq(), b"ACGT");
+        assert_eq!(record.qual().unwrap(), b"4321");
+    }
 }
