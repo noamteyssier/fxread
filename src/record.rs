@@ -502,7 +502,9 @@ mod test {
         let expected = String::from(">seq.0\nACGT\n");
         let record = Record::new_fasta(fasta, id, seq);
         assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.id_str_checked(), Ok("seq.0"));
         assert_eq!(record.seq_str(), "ACGT");
+        assert_eq!(record.seq_str_checked(), Ok("ACGT"));
         let repr: String = record.into();
         assert_eq!(repr, expected);
     }
@@ -515,6 +517,9 @@ mod test {
         assert_eq!(record.id_str(), "seq.0");
         assert_eq!(record.seq_str(), "ACGT");
         assert_eq!(record.qual_str(), Some("1234"));
+        assert_eq!(record.id_str_checked(), Ok("seq.0"));
+        assert_eq!(record.seq_str_checked(), Ok("ACGT"));
+        assert_eq!(record.qual_str_checked(), Some(Ok("1234")));
         let repr: String = record.into();
         assert_eq!(repr, expected);
     }
