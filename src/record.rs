@@ -97,6 +97,12 @@ impl Record {
         &self.data[self.id..self.id + self.seq - 1]
     }
 
+    /// Returns a mutable reference of the sequence
+    #[must_use]
+    pub fn seq_mut(&mut self) -> &mut [u8] {
+        &mut self.data[self.id..self.id + self.seq - 1]
+    }
+
     /// Returns a reference of the '+' region of a fastq
     #[must_use]
     pub fn plus(&self) -> Option<&[u8]> {
@@ -117,6 +123,21 @@ impl Record {
             Some(qual) => {
                 Some(&self.data[self.id + self.seq + plus..self.id + self.seq + plus + qual - 1])
             }
+            None => None,
+        }
+    }
+
+    /// Returns a mutable reference of the quality score if it exists
+    #[must_use]
+    pub fn qual_mut(&mut self) -> Option<&mut [u8]> {
+        let plus = match self.plus {
+            Some(plus) => plus,
+            None => return None,
+        };
+        match self.qual {
+            Some(qual) => Some(
+                &mut self.data[self.id + self.seq + plus..self.id + self.seq + plus + qual - 1],
+            ),
             None => None,
         }
     }
@@ -155,6 +176,48 @@ impl Record {
             .rev()
             .map(|c| if c & 2 == 0 { c ^ 21 } else { c ^ 4 })
             .collect()
+    }
+
+    /// Converts all non-ACGTN nucleotides to N
+    pub fn fix(&mut self) {
+        self.seq_mut().iter_mut().for_each(|c| {
+            if !matches!(
+                c,
+                b'A' | b'a' | b'C' | b'c' | b'G' | b'g' | b'T' | b't' | b'N' | b'n'
+            ) {
+                *c = b'N';
+            }
+        });
+    }
+
+    /// Converts the sequence to uppercase in place
+    pub fn upper(&mut self) {
+        self.seq_mut().iter_mut().for_each(|c| {
+            if *c & b' ' != 0 {
+                *c ^= b' ';
+            }
+        });
+    }
+
+    /// Reverse Complements the sequence in place
+    /// Also reverses the quality scores if present
+    pub fn rev_comp(&mut self) {
+        // Reverse the sequence
+        self.seq_mut().reverse();
+
+        // Complement the sequence
+        self.seq_mut().iter_mut().for_each(|c| {
+            if *c & 2 == 0 {
+                *c ^= 21;
+            } else {
+                *c ^= 4;
+            }
+        });
+
+        // Reverse the quality scores if present
+        if let Some(qual) = self.qual_mut() {
+            qual.reverse();
+        }
     }
 
     /// Validates whether sequence is composed
@@ -299,5 +362,75 @@ mod test {
         assert!(!record.empty());
         assert!(record.valid());
         assert_eq!(record.seq_rev_comp(), b"tagccgat");
+    }
+
+    #[test]
+    fn invalid_fix_fasta() {
+        let (fasta, id, seq) = gen_invalid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(!record.valid());
+        assert_eq!(record.seq(), b"ABCD");
+        record.fix();
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ANCN");
+    }
+
+    #[test]
+    fn invalid_fix_fastq() {
+        let (fasta, id, seq, plus, qual) = gen_invalid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(!record.empty());
+        assert!(!record.valid());
+        assert_eq!(record.seq(), b"ABCD");
+        record.fix();
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ANCN");
+    }
+
+    #[test]
+    fn upper_inplace() {
+        let (fasta, id, seq) = gen_valid_fasta_lower();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"acgt");
+        record.upper();
+        assert_eq!(record.seq(), b"ACGT");
+    }
+
+    #[test]
+    fn upper_nochange_inplace() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ACGT");
+        record.upper();
+        assert_eq!(record.seq(), b"ACGT");
+    }
+
+    #[test]
+    fn reverse_complement_inplace() {
+        let (fasta, id, seq) = gen_valid_fasta_rev();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ATCGGCTA");
+        record.rev_comp();
+        assert_eq!(record.seq(), b"TAGCCGAT");
+    }
+
+    #[test]
+    fn reverse_complement_fastq_inplace() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(!record.empty());
+        assert!(record.valid());
+        assert_eq!(record.seq(), b"ACGT");
+        assert_eq!(record.qual().unwrap(), b"1234");
+        record.rev_comp();
+        assert_eq!(record.seq(), b"ACGT");
+        assert_eq!(record.qual().unwrap(), b"4321");
     }
 }
