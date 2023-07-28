@@ -282,7 +282,6 @@ impl Record {
     pub fn qual_str(&self) -> Option<&str> {
         self.qual_str_checked().map(|qual| qual.unwrap())
     }
-
 }
 
 impl Default for Record {
