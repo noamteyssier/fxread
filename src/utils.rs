@@ -129,10 +129,38 @@ pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>
     Ok(reader)
 }
 
+/// Initializes a reader from stdin. This is useful for piping
+/// in data from other programs.
+///
+/// ## From Stdin
+/// This example shows the creation of a reader from stdin.
+/// ```
+/// use std::io::stdin;
+/// use fxread::initialize_stdin_reader;
+///
+/// let input = stdin().lock();
+/// let reader = initialize_stdin_reader(input);
+/// ```
+pub fn initialize_stdin_reader<R: BufRead + 'static>(
+    reader: R,
+) -> Result<Box<dyn FastxRead<Item = Record>>> {
+    let mut buffer = BufReader::with_capacity(BUFFER_SIZE, reader);
+    buffer.fill_buf()?;
+    if buffer.buffer().is_empty() {
+        return Err(anyhow::anyhow!("No data in stdin"));
+    }
+    match buffer.buffer()[0] {
+        b'>' => Ok(initialize_generic_reader(Box::new(buffer), true)),
+        b'@' => Ok(initialize_generic_reader(Box::new(buffer), false)),
+        _ => Err(anyhow::anyhow!("Unrecognized file format")),
+    }
+}
+
 #[cfg(test)]
 mod test {
 
     use super::*;
+    use std::io::Cursor;
 
     #[test]
     fn assignment_fastq_short() {
@@ -236,5 +264,31 @@ mod test {
         let reader = initialize_reader(path).expect("invalid path");
         let num_records = reader.into_iter().map(|x| assert!(!x.empty())).count();
         assert_eq!(num_records, 10);
+    }
+
+    #[test]
+    fn assign_fa_stdin() {
+        let example_fa = ">test\nACGT\n>test2\nACGT\n";
+        let cursor = Cursor::new(example_fa);
+        let reader = initialize_stdin_reader(cursor).expect("invalid path");
+        let num_records = reader.count();
+        assert_eq!(num_records, 2);
+    }
+
+    #[test]
+    fn assign_fq_stdin() {
+        let example_fq = "@test\nACGT\n+\n!!!!\n@test2\nACGT\n+\n!!!!\n";
+        let cursor = Cursor::new(example_fq);
+        let reader = initialize_stdin_reader(cursor).expect("invalid path");
+        let num_records = reader.count();
+        assert_eq!(num_records, 2);
+    }
+
+    #[test]
+    fn assign_malformed_stdin() {
+        let example_malformed = "test\nACGT\n+\n!!!!\n@test2\nACGT\n+\n!!!!\n";
+        let cursor = Cursor::new(example_malformed);
+        let reader = initialize_stdin_reader(cursor);
+        assert!(reader.is_err());
     }
 }
