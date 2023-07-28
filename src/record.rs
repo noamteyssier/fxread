@@ -97,6 +97,12 @@ impl Record {
         &self.data[self.id..self.id + self.seq - 1]
     }
 
+    /// Returns a mutable reference of the sequence
+    #[must_use]
+    pub fn seq_mut(&mut self) -> &mut [u8] {
+        &mut self.data[self.id..self.id + self.seq - 1]
+    }
+
     /// Returns a reference of the '+' region of a fastq
     #[must_use]
     pub fn plus(&self) -> Option<&[u8]> {
