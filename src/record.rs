@@ -281,9 +281,9 @@ impl Record {
         })
     }
 
-    /// Data as str
+    /// Underlying record as str
     #[must_use]
-    pub fn data_str_checked(&self) -> Result<&str, std::str::Utf8Error> {
+    pub fn as_str_checked(&self) -> Result<&str, std::str::Utf8Error> {
         std::str::from_utf8(self.data())
     }
 
@@ -309,10 +309,10 @@ impl Record {
         }
     }
 
-    /// Data as str unchecked (may panic if invalid utf8)
+    /// Underlying record as str unchecked (may panic if invalid utf8)
     #[must_use]
-    pub fn data_str(&self) -> &str {
-        self.data_str_checked().unwrap()
+    pub fn as_str(&self) -> &str {
+        self.as_str_checked().unwrap()
     }
 
     /// ID as str unchecked (may panic if invalid utf8)
@@ -342,11 +342,7 @@ impl Default for Record {
 
 impl Into<String> for Record {
     fn into(self) -> String {
-        let header_char = if self.qual.is_some() { '@' } else { '>' };
-        let mut record = String::with_capacity(self.data.len() + 1);
-        record.push(header_char);
-        record.push_str(self.data_str());
-        record
+        self.as_str().to_string()
     }
 }
 
@@ -555,6 +551,8 @@ mod test {
         assert_eq!(record.id_str_checked(), Ok("seq.0"));
         assert_eq!(record.seq_str(), "ACGT");
         assert_eq!(record.seq_str_checked(), Ok("ACGT"));
+        let repr = record.as_str();
+        assert_eq!(repr, &expected);
         let repr: String = record.into();
         assert_eq!(repr, expected);
     }
@@ -570,6 +568,8 @@ mod test {
         assert_eq!(record.id_str_checked(), Ok("seq.0"));
         assert_eq!(record.seq_str_checked(), Ok("ACGT"));
         assert_eq!(record.qual_str_checked(), Some(Ok("1234")));
+        let repr = record.as_str();
+        assert_eq!(repr, &expected);
         let repr: String = record.into();
         assert_eq!(repr, expected);
     }
