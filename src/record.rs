@@ -129,15 +129,15 @@ impl Record {
 
     /// Returns a mutable reference of the quality score if it exists
     #[must_use]
-    pub fn qual_mut(&mut self) -> Option<&mut[u8]> {
+    pub fn qual_mut(&mut self) -> Option<&mut [u8]> {
         let plus = match self.plus {
             Some(plus) => plus,
             None => return None,
         };
         match self.qual {
-            Some(qual) => {
-                Some(&mut self.data[self.id + self.seq + plus..self.id + self.seq + plus + qual - 1])
-            }
+            Some(qual) => Some(
+                &mut self.data[self.id + self.seq + plus..self.id + self.seq + plus + qual - 1],
+            ),
             None => None,
         }
     }
@@ -181,7 +181,10 @@ impl Record {
     /// Converts all non-ACGTN nucleotides to N
     pub fn fix(&mut self) {
         self.seq_mut().iter_mut().for_each(|c| {
-            if !matches!(c, b'A' | b'a' | b'C' | b'c' | b'G' | b'g' | b'T' | b't' | b'N' | b'n') {
+            if !matches!(
+                c,
+                b'A' | b'a' | b'C' | b'c' | b'G' | b'g' | b'T' | b't' | b'N' | b'n'
+            ) {
                 *c = b'N';
             }
         });
@@ -196,11 +199,9 @@ impl Record {
         });
     }
 
-
     /// Reverse Complements the sequence in place
     /// Also reverses the quality scores if present
     pub fn rev_comp(&mut self) {
-
         // Reverse the sequence
         self.seq_mut().reverse();
 
