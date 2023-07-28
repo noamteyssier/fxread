@@ -35,7 +35,7 @@ impl Record {
     /// endpoints are inclusive of the '\n' terminator and the data is
     /// expected to exclude the prefix '>' marker.
     /// ```
-    /// let data = b"seq.0\nACGT\n".to_vec();
+    /// let data = b">seq.0\nACGT\n".to_vec();
     /// let id = 6;
     /// let seq = 5;
     /// let fasta = fxread::Record::new_fasta(data, id, seq);
@@ -59,7 +59,7 @@ impl Record {
     /// These endpoints are inclusive of the '\n' terminator and the data is
     /// expected to exclude the prefix '@' marker.
     /// ```
-    /// let data = b"seq.0\nACGT\n+\n1234\n".to_vec();
+    /// let data = b"@seq.0\nACGT\n+\n1234\n".to_vec();
     /// let id = 6;
     /// let seq = 5;
     /// let plus = 2;
