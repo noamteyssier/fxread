@@ -2,7 +2,7 @@ use anyhow::Result;
 use flate2::read::MultiGzDecoder;
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, stdin},
 };
 
 use super::{FastaReader, FastqReader, FastxRead, Record};
@@ -127,6 +127,28 @@ pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>
     let buffer = initialize_generic_buffer(path, is_gzip)?;
     let reader = initialize_generic_reader(buffer, is_fasta);
     Ok(reader)
+}
+
+/// Initializes a reader from stdin. This is useful for piping
+/// in data from other programs.
+///
+/// ## From Stdin
+/// This example shows the creation of a reader from stdin.
+/// ```
+/// use fxread::initialize_stdin_reader;
+/// let reader = initialize_stdin_reader();
+/// reader
+///    .for_each(|record| println!("{:?}", record));
+/// ```
+pub fn initialize_stdin_reader() -> Result<Box<dyn FastxRead<Item = Record>>> {
+    let mut buffer = BufReader::with_capacity(BUFFER_SIZE, stdin());
+    buffer.fill_buf()?;
+    match buffer.buffer()[0] {
+        b'>' => Ok(initialize_generic_reader(Box::new(buffer), true)),
+        b'@' => Ok(initialize_generic_reader(Box::new(buffer), false)),
+        _ => Err(anyhow::anyhow!("Unrecognized file format")),
+
+    }
 }
 
 #[cfg(test)]

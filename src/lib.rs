@@ -46,4 +46,4 @@ pub use fasta::FastaReader;
 pub use fastq::FastqReader;
 pub use fastx::FastxRead;
 pub use record::Record;
-pub use utils::initialize_reader;
+pub use utils::{initialize_reader, initialize_stdin_reader};
