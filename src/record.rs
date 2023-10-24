@@ -766,4 +766,91 @@ mod test {
         assert_eq!(record.qual_str(), Some("12"));
         assert_eq!(record.as_str(), "@seq.0\nAC\n+\n12\n");
     }
+
+    #[test]
+    fn fasta_insert_left() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        record.insert_seq_left(b"TT").unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "TTACGT");
+        assert_eq!(record.as_str(), ">seq.0\nTTACGT\n");
+    }
+
+    #[test]
+    fn fastq_insert_left() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        record.insert_seq_left(b"TT").unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "TTACGT");
+        assert_eq!(record.qual_str(), Some("FF1234"));
+        assert_eq!(record.as_str(), "@seq.0\nTTACGT\n+\nFF1234\n");
+    }
+
+    #[test]
+    fn fasta_insert_right() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        record.insert_seq_right(b"TT").unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACGTTT");
+        assert_eq!(record.as_str(), ">seq.0\nACGTTT\n");
+    }
+
+    #[test]
+    fn fastq_insert_right() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        record.insert_seq_right(b"TT").unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACGTTT");
+        assert_eq!(record.qual_str(), Some("1234FF"));
+        assert_eq!(record.as_str(), "@seq.0\nACGTTT\n+\n1234FF\n");
+    }
+
+    #[test]
+    fn fasta_insert_middle() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        record.insert_seq(b"TT", 2).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACTTGT");
+        assert_eq!(record.as_str(), ">seq.0\nACTTGT\n");
+    }
+
+    #[test]
+    fn fastq_insert_middle() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        record.insert_seq(b"TT", 2).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACTTGT");
+        assert_eq!(record.qual_str(), Some("12FF34"));
+        assert_eq!(record.as_str(), "@seq.0\nACTTGT\n+\n12FF34\n");
+    }
+
+    #[test]
+    fn fasta_insert_custom_oversized() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(record.insert_seq(b"TT", 10).is_err());
+
+        // seq size is error because it includes the newline
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(record.insert_seq(b"TT", seq).is_err());
+    }
+
+    #[test]
+    fn fastq_insert_custom_oversized() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(record.insert_seq(b"TT", 10).is_err());
+
+        // seq size is error because it includes the newline
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(record.insert_seq(b"TT", seq).is_err());
+    }
 }
