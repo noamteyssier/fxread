@@ -28,9 +28,13 @@ impl MyRange for RangeInclusive<i32> {
 #[derive(Debug)]
 pub struct Record {
     data: Vec<u8>,
+    /// The index of the ID size
     id: usize,
+    /// The index of the sequence size
     seq: usize,
+    /// The index of the plus size (if fastq)
     plus: Option<usize>,
+    /// The index of the quality size (if fastq)
     qual: Option<usize>,
 }
 impl Record {
