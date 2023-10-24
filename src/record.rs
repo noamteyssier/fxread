@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
 use std::ops::{Range, RangeInclusive};
 
+const DEFAULT_QUAL: u8 = b'F';
+
 pub trait MyRange: Iterator<Item = i32> {
     fn start(&self) -> i32;
     fn end(&self) -> i32;
@@ -28,9 +30,13 @@ impl MyRange for RangeInclusive<i32> {
 #[derive(Debug)]
 pub struct Record {
     data: Vec<u8>,
+    /// The index of the ID size
     id: usize,
+    /// The index of the sequence size
     seq: usize,
+    /// The index of the plus size (if fastq)
     plus: Option<usize>,
+    /// The index of the quality size (if fastq)
     qual: Option<usize>,
 }
 impl Record {
@@ -290,6 +296,46 @@ impl Record {
         if let Some(qual) = self.qual_mut() {
             qual.reverse();
         }
+    }
+
+    /// Inserts nucleotides into the sequence at the specified index
+    /// and the corresponding quality scores if present
+    /// Returns an error if the index is greater than the sequence length
+    pub fn insert_seq(&mut self, seq: &[u8], pos: usize) -> Result<()> {
+        if pos >= self.seq {
+            bail!("Cannot insert at a position greater than the sequence length");
+        }
+        let insert_pos = self.seq_range().start + pos;
+        self.data
+            .splice(insert_pos..insert_pos, seq.iter().cloned());
+        self.seq += seq.len();
+        self.insert_qual(seq.len(), pos)?;
+        Ok(())
+    }
+
+    /// Inserts PHRED quality scores into the sequence at the specified index
+    /// Returns an error if the index is greater than the qual length
+    fn insert_qual(&mut self, insert_size: usize, pos: usize) -> Result<()> {
+        if let Some(qual) = self.qual {
+            if pos > qual {
+                bail!("Cannot insert at a position greater than the quality length");
+            }
+            let insert_pos = self.qual_range().unwrap().start + pos;
+            self.data
+                .splice(insert_pos..insert_pos, vec![DEFAULT_QUAL; insert_size]);
+            self.qual = Some(qual + insert_size);
+        }
+        Ok(())
+    }
+
+    /// Convenience function to insert nucleotides at the beginning of a sequence
+    pub fn insert_seq_left(&mut self, seq: &[u8]) -> Result<()> {
+        self.insert_seq(seq, 0)
+    }
+
+    /// Convenience function to insert nucleotides at the end of a sequence
+    pub fn insert_seq_right(&mut self, seq: &[u8]) -> Result<()> {
+        self.insert_seq(seq, self.seq - 1)
     }
 
     /// Trims the nucleotides from the left of the sequence
@@ -719,5 +765,92 @@ mod test {
         assert_eq!(record.seq_str(), "AC");
         assert_eq!(record.qual_str(), Some("12"));
         assert_eq!(record.as_str(), "@seq.0\nAC\n+\n12\n");
+    }
+
+    #[test]
+    fn fasta_insert_left() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        record.insert_seq_left(b"TT").unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "TTACGT");
+        assert_eq!(record.as_str(), ">seq.0\nTTACGT\n");
+    }
+
+    #[test]
+    fn fastq_insert_left() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        record.insert_seq_left(b"TT").unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "TTACGT");
+        assert_eq!(record.qual_str(), Some("FF1234"));
+        assert_eq!(record.as_str(), "@seq.0\nTTACGT\n+\nFF1234\n");
+    }
+
+    #[test]
+    fn fasta_insert_right() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        record.insert_seq_right(b"TT").unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACGTTT");
+        assert_eq!(record.as_str(), ">seq.0\nACGTTT\n");
+    }
+
+    #[test]
+    fn fastq_insert_right() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        record.insert_seq_right(b"TT").unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACGTTT");
+        assert_eq!(record.qual_str(), Some("1234FF"));
+        assert_eq!(record.as_str(), "@seq.0\nACGTTT\n+\n1234FF\n");
+    }
+
+    #[test]
+    fn fasta_insert_middle() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        record.insert_seq(b"TT", 2).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACTTGT");
+        assert_eq!(record.as_str(), ">seq.0\nACTTGT\n");
+    }
+
+    #[test]
+    fn fastq_insert_middle() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        record.insert_seq(b"TT", 2).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACTTGT");
+        assert_eq!(record.qual_str(), Some("12FF34"));
+        assert_eq!(record.as_str(), "@seq.0\nACTTGT\n+\n12FF34\n");
+    }
+
+    #[test]
+    fn fasta_insert_custom_oversized() {
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(record.insert_seq(b"TT", 10).is_err());
+
+        // seq size is error because it includes the newline
+        let (fasta, id, seq) = gen_valid_fasta();
+        let mut record = Record::new_fasta(fasta, id, seq);
+        assert!(record.insert_seq(b"TT", seq).is_err());
+    }
+
+    #[test]
+    fn fastq_insert_custom_oversized() {
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(record.insert_seq(b"TT", 10).is_err());
+
+        // seq size is error because it includes the newline
+        let (fasta, id, seq, plus, qual) = gen_valid_fastq();
+        let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
+        assert!(record.insert_seq(b"TT", seq).is_err());
     }
 }
