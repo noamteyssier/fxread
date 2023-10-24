@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
 use std::ops::{Range, RangeInclusive};
 
+const DEFAULT_QUAL: u8 = b'F';
+
 pub trait MyRange: Iterator<Item = i32> {
     fn start(&self) -> i32;
     fn end(&self) -> i32;
@@ -294,6 +296,46 @@ impl Record {
         if let Some(qual) = self.qual_mut() {
             qual.reverse();
         }
+    }
+
+    /// Inserts nucleotides into the sequence at the specified index
+    /// and the corresponding quality scores if present
+    /// Returns an error if the index is greater than the sequence length
+    pub fn insert_seq(&mut self, seq: &[u8], pos: usize) -> Result<()> {
+        if pos >= self.seq {
+            bail!("Cannot insert at a position greater than the sequence length");
+        }
+        let insert_pos = self.seq_range().start + pos;
+        self.data
+            .splice(insert_pos..insert_pos, seq.iter().cloned());
+        self.seq += seq.len();
+        self.insert_qual(seq.len(), pos)?;
+        Ok(())
+    }
+
+    /// Inserts PHRED quality scores into the sequence at the specified index
+    /// Returns an error if the index is greater than the qual length
+    fn insert_qual(&mut self, insert_size: usize, pos: usize) -> Result<()> {
+        if let Some(qual) = self.qual {
+            if pos > qual {
+                bail!("Cannot insert at a position greater than the quality length");
+            }
+            let insert_pos = self.qual_range().unwrap().start + pos;
+            self.data
+                .splice(insert_pos..insert_pos, vec![DEFAULT_QUAL; insert_size]);
+            self.qual = Some(qual + insert_size);
+        }
+        Ok(())
+    }
+
+    /// Convenience function to insert nucleotides at the beginning of a sequence
+    pub fn insert_seq_left(&mut self, seq: &[u8]) -> Result<()> {
+        self.insert_seq(seq, 0)
+    }
+
+    /// Convenience function to insert nucleotides at the end of a sequence
+    pub fn insert_seq_right(&mut self, seq: &[u8]) -> Result<()> {
+        self.insert_seq(seq, self.seq - 1)
     }
 
     /// Trims the nucleotides from the left of the sequence
