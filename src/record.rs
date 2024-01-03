@@ -993,12 +993,12 @@ mod test {
     fn init_fastq_from_parts_invalid_seq_a() {
         let id = b"seq.0";
         let seq = b"ACGT\n";
-        let qual = b"1234";
+        let qual = b"12345";
         assert!(Record::new_fastq_from_parts(id, seq, qual).is_err());
     }
 
     #[test]
-    fn init_fastq_from_parts_invalid_seq_qual_size_mismatch() {
+    fn init_fastq_from_parts_invalid_seq_qual_size_mismatch_a() {
         let id = b"seq.0";
         let seq = b"ACGTA";
         let qual = b"1234";
@@ -1006,9 +1006,17 @@ mod test {
     }
 
     #[test]
-    fn init_fastq_from_parts_invalid_qual_a() {
+    fn init_fastq_from_parts_invalid_seq_qual_size_mismatch_b() {
         let id = b"seq.0";
         let seq = b"ACGT";
+        let qual = b"12345";
+        assert!(Record::new_fastq_from_parts(id, seq, qual).is_err());
+    }
+
+    #[test]
+    fn init_fastq_from_parts_invalid_qual_a() {
+        let id = b"seq.0";
+        let seq = b"ACGTA";
         let qual = b"1234\n";
         assert!(Record::new_fastq_from_parts(id, seq, qual).is_err());
     }
