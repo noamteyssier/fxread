@@ -109,6 +109,101 @@ impl Record {
         }
     }
 
+    /// # Usage
+    ///
+    /// Creates a new instance of a `[Record]` from its raw parts and calculates
+    /// the endpoints. The `id` and `seq` are required and expected to be the raw
+    /// data excluding the prefix '>' marker.
+    ///
+    /// ```
+    /// let id = b"seq.0";
+    /// let seq = b"ACGT";
+    /// let record = fxread::Record::new_fasta_from_parts(id, seq).unwrap();
+    /// assert_eq!(record.id(), b"seq.0");
+    /// assert_eq!(record.seq(), b"ACGT");
+    /// ```
+    #[must_use]
+    pub fn new_fasta_from_parts(id: &[u8], seq: &[u8]) -> Result<Self> {
+        let mut data = Vec::with_capacity(id.len() + seq.len() + 2);
+        if id.starts_with(b">") {
+            bail!("ID cannot start with '>'");
+        }
+        if id.ends_with(b"\n") {
+            bail!("ID cannot end with newline");
+        }
+        if seq.ends_with(b"\n") {
+            bail!("Sequence cannot end with newline");
+        }
+        data.extend_from_slice(b">");
+        data.extend_from_slice(id);
+        data.extend_from_slice(b"\n");
+        data.extend_from_slice(seq);
+        data.extend_from_slice(b"\n");
+        let id_idx = id.len() + 1;
+        let seq_idx = seq.len() + 1;
+        Ok(Self {
+            data,
+            id: id_idx,
+            seq: seq_idx,
+            plus: None,
+            qual: None,
+        })
+    }
+
+    /// # Usage
+    ///
+    /// Creates a new instance of a `[Record]` from its raw parts and calculates
+    /// the endpoints. The `id` and `seq` and `qual` are required and expected to
+    /// be the raw data excluding the prefix '>' or '@' markers. The `plus` is
+    /// not required and is expected to be the raw data excluding the prefix '+'.
+    ///
+    /// ```
+    /// let id = b"seq.0";
+    /// let seq = b"ACGT";
+    /// let qual = b"1234";
+    /// let record = fxread::Record::new_fastq_from_parts(id, seq, qual).unwrap();
+    /// assert_eq!(record.id(), b"seq.0");
+    /// assert_eq!(record.seq(), b"ACGT");
+    /// assert_eq!(record.qual().unwrap(), b"1234");
+    /// ```
+    #[must_use]
+    pub fn new_fastq_from_parts(id: &[u8], seq: &[u8], qual: &[u8]) -> Result<Self> {
+        let mut data = Vec::with_capacity(id.len() + seq.len() + qual.len() + 4);
+        if id.starts_with(b"@") {
+            bail!("ID cannot start with '@'");
+        }
+        if seq.len() != qual.len() {
+            bail!("Sequence and Quality must be the same length");
+        }
+        if id.ends_with(b"\n") {
+            bail!("ID cannot end with newline");
+        }
+        if seq.ends_with(b"\n") {
+            bail!("Sequence cannot end with newline");
+        }
+        if qual.ends_with(b"\n") {
+            bail!("Quality cannot end with newline");
+        }
+        data.extend_from_slice(b"@");
+        data.extend_from_slice(id);
+        data.extend_from_slice(b"\n");
+        data.extend_from_slice(seq);
+        data.extend_from_slice(b"\n+\n");
+        data.extend_from_slice(qual);
+        data.extend_from_slice(b"\n");
+        let id_idx = id.len() + 1;
+        let seq_idx = seq.len() + 1;
+        let plus_idx = 2;
+        let qual_idx = qual.len() + 1;
+        Ok(Self {
+            data,
+            id: id_idx,
+            seq: seq_idx,
+            plus: Some(plus_idx),
+            qual: Some(qual_idx),
+        })
+    }
+
     /// Checks if `[Record]` is a fasta
     #[must_use]
     pub fn is_fasta(&self) -> bool {
@@ -852,5 +947,90 @@ mod test {
         let (fasta, id, seq, plus, qual) = gen_valid_fastq();
         let mut record = Record::new_fastq(fasta, id, seq, plus, qual);
         assert!(record.insert_seq(b"TT", seq).is_err());
+    }
+
+    #[test]
+    fn init_fastq_from_parts() {
+        let id = b"seq.0";
+        let seq = b"ACGT";
+        let qual = b"1234";
+        let record = Record::new_fastq_from_parts(id, seq, qual).unwrap();
+        let expected_plus = vec![b'+'];
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACGT");
+        assert_eq!(record.plus(), Some(expected_plus.as_slice()));
+        assert_eq!(record.qual_str(), Some("1234"));
+    }
+
+    #[test]
+    fn init_fasta_from_parts() {
+        let id = b"seq.0";
+        let seq = b"ACGT";
+        let record = Record::new_fasta_from_parts(id, seq).unwrap();
+        assert_eq!(record.id_str(), "seq.0");
+        assert_eq!(record.seq_str(), "ACGT");
+        assert!(record.plus().is_none());
+        assert!(record.qual_str().is_none());
+    }
+
+    #[test]
+    fn init_fastq_from_parts_invalid_id_a() {
+        let id = b"seq.0\n";
+        let seq = b"ACGT";
+        let qual = b"1234";
+        assert!(Record::new_fastq_from_parts(id, seq, qual).is_err());
+    }
+
+    #[test]
+    fn init_fastq_from_parts_invalid_id_b() {
+        let id = b"@seq.0";
+        let seq = b"ACGT";
+        let qual = b"1234";
+        assert!(Record::new_fastq_from_parts(id, seq, qual).is_err());
+    }
+
+    #[test]
+    fn init_fastq_from_parts_invalid_seq_a() {
+        let id = b"seq.0";
+        let seq = b"ACGT\n";
+        let qual = b"1234";
+        assert!(Record::new_fastq_from_parts(id, seq, qual).is_err());
+    }
+
+    #[test]
+    fn init_fastq_from_parts_invalid_seq_qual_size_mismatch() {
+        let id = b"seq.0";
+        let seq = b"ACGTA";
+        let qual = b"1234";
+        assert!(Record::new_fastq_from_parts(id, seq, qual).is_err());
+    }
+
+    #[test]
+    fn init_fastq_from_parts_invalid_qual_a() {
+        let id = b"seq.0";
+        let seq = b"ACGT";
+        let qual = b"1234\n";
+        assert!(Record::new_fastq_from_parts(id, seq, qual).is_err());
+    }
+
+    #[test]
+    fn init_fasta_from_parts_invalid_id_a() {
+        let id = b"seq.0\n";
+        let seq = b"ACGT";
+        assert!(Record::new_fasta_from_parts(id, seq).is_err());
+    }
+
+    #[test]
+    fn init_fasta_from_parts_invalid_id_b() {
+        let id = b">seq.0";
+        let seq = b"ACGT";
+        assert!(Record::new_fasta_from_parts(id, seq).is_err());
+    }
+
+    #[test]
+    fn init_fasta_from_parts_invalid_seq_a() {
+        let id = b"seq.0";
+        let seq = b"ACGT\n";
+        assert!(Record::new_fasta_from_parts(id, seq).is_err());
     }
 }
