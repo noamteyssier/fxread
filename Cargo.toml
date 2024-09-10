@@ -14,3 +14,4 @@ categories = ["science"]
 [dependencies]
 anyhow = "1.0.65"
 flate2 = "1.0.24"
+niffler = "2.6.0"
