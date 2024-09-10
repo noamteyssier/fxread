@@ -140,6 +140,30 @@ mod test {
     }
 
     #[test]
+    fn assign_bz2fasta() {
+        let path = "example/sequences.fa.bz2";
+        let reader = initialize_reader(path).expect("invalid path");
+        let num_records = reader.into_iter().map(|x| assert!(!x.empty())).count();
+        assert_eq!(num_records, 10);
+    }
+
+    #[test]
+    fn assign_xzfasta() {
+        let path = "example/sequences.fa.xz";
+        let reader = initialize_reader(path).expect("invalid path");
+        let num_records = reader.into_iter().map(|x| assert!(!x.empty())).count();
+        assert_eq!(num_records, 10);
+    }
+
+    #[test]
+    fn assign_zstfasta() {
+        let path = "example/sequences.fa.zst";
+        let reader = initialize_reader(path).expect("invalid path");
+        let num_records = reader.into_iter().map(|x| assert!(!x.empty())).count();
+        assert_eq!(num_records, 10);
+    }
+
+    #[test]
     fn assign_fastq() {
         let path = "example/sequences.fq";
         let reader = initialize_reader(path).expect("invalid path");
@@ -150,6 +174,30 @@ mod test {
     #[test]
     fn assign_gzfastq() {
         let path = "example/sequences.fq.gz";
+        let reader = initialize_reader(path).expect("invalid path");
+        let num_records = reader.into_iter().map(|x| assert!(!x.empty())).count();
+        assert_eq!(num_records, 10);
+    }
+
+    #[test]
+    fn assign_bz2fastq() {
+        let path = "example/sequences.fq.bz2";
+        let reader = initialize_reader(path).expect("invalid path");
+        let num_records = reader.into_iter().map(|x| assert!(!x.empty())).count();
+        assert_eq!(num_records, 10);
+    }
+
+    #[test]
+    fn assign_xzfastq() {
+        let path = "example/sequences.fq.xz";
+        let reader = initialize_reader(path).expect("invalid path");
+        let num_records = reader.into_iter().map(|x| assert!(!x.empty())).count();
+        assert_eq!(num_records, 10);
+    }
+
+    #[test]
+    fn assign_zstfastq() {
+        let path = "example/sequences.fq.zst";
         let reader = initialize_reader(path).expect("invalid path");
         let num_records = reader.into_iter().map(|x| assert!(!x.empty())).count();
         assert_eq!(num_records, 10);
