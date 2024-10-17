@@ -1,14 +1,19 @@
 use anyhow::Result;
 use std::{
+    convert::AsRef,
     fs::File,
     io::{BufRead, BufReader},
+    path::Path,
 };
 
 use super::{FastaReader, FastqReader, FastxRead, Record};
 
 const BUFFER_SIZE: usize = 4096 * 68;
 
-fn initialize_generic_buffer(path: &str) -> Result<Box<BufReader<Box<dyn std::io::Read>>>> {
+fn initialize_generic_buffer<P>(path: P) -> Result<Box<BufReader<Box<dyn std::io::Read>>>>
+where
+    P: AsRef<Path>,
+{
     Ok(Box::new(std::io::BufReader::new(
         niffler::get_reader(Box::new(File::open(path)?))?.0,
     )))
@@ -77,7 +82,10 @@ fn initialize_generic_reader(
 /// reader
 ///     .for_each(|record| println!("{:?}", record));
 /// ```
-pub fn initialize_reader(path: &str) -> Result<Box<dyn FastxRead<Item = Record>>> {
+pub fn initialize_reader<P>(path: P) -> Result<Box<dyn FastxRead<Item = Record>>>
+where
+    P: AsRef<Path>,
+{
     let mut buffer = initialize_generic_buffer(path)?;
     buffer.fill_buf()?;
     if buffer.buffer().is_empty() {
